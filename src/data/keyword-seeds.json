@@ -1,0 +1,6 @@
+{
+  "React": ["react", "reactjs", "nextjs", "jsx", "hooks", "frontend"],
+  "DSA": ["dsa", "algorithm", "leetcode", "data structure", "binary tree", "dynamic programming"],
+  "Machine Learning": ["machine learning", "ml", "ai", "artificial intelligence", "neural network", "deep learning", "pytorch", "tensorflow"],
+  "Productivity": ["productivity", "focus", "time management", "pomodoro", "study with me"]
+}

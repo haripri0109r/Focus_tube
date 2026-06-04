@@ -1,0 +1,6 @@
+{
+  "name": "FocusTube",
+  "description": "Chrome extension to limit YouTube distractions during focus sessions.",
+  "requestFramePermissions": [],
+  "majorCapabilities": []
+}
