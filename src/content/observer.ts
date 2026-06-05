@@ -30,7 +30,7 @@ export function setupObserver(pageType: PageType, keywords: string[], topic: str
   let rootSelector = '';
   if (pageType === 'home') rootSelector = 'ytd-rich-grid-renderer #contents';
   else if (pageType === 'search') rootSelector = 'ytd-section-list-renderer #contents';
-  else if (pageType === 'watch') rootSelector = '#secondary-inner';
+  else if (pageType === 'watch') rootSelector = '#related';
   
   if (!rootSelector) return;
   
@@ -61,7 +61,7 @@ function processFilters(pageType: PageType, keywords: string[], prefs: UserPrefs
   } else if (pageType === 'search' && prefs.filterSearch) {
     applySearchFilter(keywords, onHideCallback, onShowCallback, prefs.filterShorts);
   } else if (pageType === 'watch' && prefs.filterSidebar) {
-    applySidebarFilter(keywords, onHideCallback, onShowCallback);
+    applyHomepageFilter(keywords, onHideCallback, onShowCallback);
   }
 }
 
