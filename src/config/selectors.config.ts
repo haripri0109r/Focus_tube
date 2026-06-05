@@ -7,7 +7,7 @@ export const SelectorConfig = {
   },
   search: {
     root: 'ytd-section-list-renderer #contents',
-    items: ['ytd-video-renderer', 'ytd-shelf-renderer', 'ytd-reel-shelf-renderer'],
+    items: ['ytd-video-renderer', 'ytd-shelf-renderer', 'ytd-reel-shelf-renderer', 'ytd-channel-renderer'],
     shelves: ['ytd-reel-shelf-renderer', 'ytd-shelf-renderer']
   },
   watch: {
