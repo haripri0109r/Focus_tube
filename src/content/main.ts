@@ -1,7 +1,7 @@
 import { PageType, SessionState, UserPrefs } from '../types';
 import { setupSpaNavigator } from './spa-navigator';
 import { setupObserver, disconnectObserver, setStatsCallbacks } from './observer';
-import { restoreAllHiddenElements } from './restore';
+import { restoreAllHiddenElements, clearAllProcessedFlags } from './restore';
 import { restoreShorts } from './filters/shorts';
 import { healthCheck } from '../lib/health-check';
 import { mountOverlay, unmountOverlay } from './overlay';
@@ -122,6 +122,7 @@ async function onFilterStateChange() {
 }
 
 function onNavigation(pageType: PageType) {
+  clearAllProcessedFlags();
   onFilterStateChange();
 }
 

@@ -5,3 +5,10 @@ export function restoreAllHiddenElements() {
     (el as HTMLElement).style.removeProperty('display');
   });
 }
+
+export function clearAllProcessedFlags() {
+  const processedElements = document.querySelectorAll('[data-ft-processed="true"]');
+  processedElements.forEach((el) => {
+    el.removeAttribute('data-ft-processed');
+  });
+}
