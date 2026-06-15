@@ -1,12 +1,14 @@
 import React, { useState, useEffect } from 'react';
-import { UserPrefs, SessionRecord } from '../types';
-import { ToggleRight, ToggleLeft, Save, GraduationCap, X, Download, Flame, Shield } from 'lucide-react';
+import { UserPrefs, SessionRecord, AnalyticsData, DailyStats } from '../types';
+import { CAREER_PATH_PRESETS, CAREER_PATH_NAMES } from '../data/career-paths';
+import { ToggleRight, ToggleLeft, Save, GraduationCap, X, Download, Flame, Shield, BarChart3, Target, Briefcase } from 'lucide-react';
 
 export default function App() {
   const [prefs, setPrefs] = useState<UserPrefs>({
     alwaysOn: false,
     defaultTopic: '',
     defaultKeywords: [],
+    careerPath: null,
     filterHome: true,
     filterSearch: true,
     filterSidebar: true,
@@ -15,9 +17,10 @@ export default function App() {
   const [topicInput, setTopicInput] = useState('');
   const [isSaving, setIsSaving] = useState(false);
   const [history, setHistory] = useState<SessionRecord[]>([]);
+  const [analytics, setAnalytics] = useState<AnalyticsData>({ dailyStats: {} });
 
   useEffect(() => {
-    chrome.storage.local.get(['focustube_prefs', 'focustube_history'], (res) => {
+    chrome.storage.local.get(['focustube_prefs', 'focustube_history', 'focustube_analytics'], (res) => {
       if (res.focustube_prefs) {
         const p = res.focustube_prefs as UserPrefs;
         setPrefs(p);
@@ -25,6 +28,9 @@ export default function App() {
       }
       if (res.focustube_history) {
         setHistory(res.focustube_history as SessionRecord[]);
+      }
+      if (res.focustube_analytics) {
+        setAnalytics(res.focustube_analytics as AnalyticsData);
       }
     });
   }, []);
@@ -65,6 +71,13 @@ export default function App() {
       }
       setNewKeyword('');
     }
+  };
+
+  const handleCareerPathChange = async (path: string | null) => {
+    const updated = { ...prefs, careerPath: path };
+    setPrefs(updated);
+    // Save immediately — does NOT modify defaultKeywords
+    await chrome.storage.local.set({ focustube_prefs: updated });
   };
 
   const calculateStreak = (): number => {
@@ -117,6 +130,63 @@ export default function App() {
     document.body.removeChild(link);
   };
 
+  // ─── Analytics Helpers ───
+
+  const today = new Date().toLocaleDateString('en-CA');
+  const todayStats: DailyStats = (analytics.dailyStats || {})[today] || { allowed: 0, blocked: 0, topics: {} };
+  
+  const focusScore = (todayStats.allowed + todayStats.blocked) > 0
+    ? Math.round((todayStats.blocked / (todayStats.allowed + todayStats.blocked)) * 100)
+    : 0;
+
+  // Last 7 days for trend chart
+  const getLast7Days = (): { date: string; label: string; stats: DailyStats }[] => {
+    const days: { date: string; label: string; stats: DailyStats }[] = [];
+    for (let i = 6; i >= 0; i--) {
+      const d = new Date();
+      d.setDate(d.getDate() - i);
+      const dateStr = d.toLocaleDateString('en-CA');
+      const label = d.toLocaleDateString('en-US', { weekday: 'short' });
+      days.push({
+        date: dateStr,
+        label,
+        stats: (analytics.dailyStats || {})[dateStr] || { allowed: 0, blocked: 0, topics: {} }
+      });
+    }
+    return days;
+  };
+
+  const last7Days = getLast7Days();
+  const maxBlocked = Math.max(...last7Days.map(d => d.stats.blocked), 1);
+
+  // Topic distribution from analytics (NOT from history)
+  const getTopicDistribution = (): { topic: string; count: number }[] => {
+    const topicCounts: Record<string, number> = {};
+    for (const day of Object.values(analytics.dailyStats || {}) as DailyStats[]) {
+      for (const [topic, count] of Object.entries(day.topics || {})) {
+        const val = count as number;
+        topicCounts[topic] = (topicCounts[topic] || 0) + val;
+      }
+    }
+    return Object.entries(topicCounts)
+      .map(([topic, count]) => ({ topic, count }))
+      .sort((a, b) => b.count - a.count)
+      .slice(0, 8);
+  };
+
+  const topicDistribution = getTopicDistribution();
+  const maxTopicCount = Math.max(...topicDistribution.map(t => t.count), 1);
+
+  const handleResetAnalytics = async () => {
+    await chrome.storage.local.set({ focustube_analytics: { dailyStats: {} } });
+    setAnalytics({ dailyStats: {} });
+  };
+
+  // ─── Career Path Preset Keywords (read-only display) ───
+  const careerPresetKeywords = prefs.careerPath
+    ? (CAREER_PATH_PRESETS[prefs.careerPath] || [])
+    : [];
+
   return (
     <div className="min-h-screen bg-slate-50 p-8 font-sans text-slate-900">
       <div className="max-w-2xl mx-auto">
@@ -125,6 +195,51 @@ export default function App() {
           <h1 className="text-3xl font-bold tracking-tight">FocusTube Options</h1>
         </div>
         
+        {/* ─── Career Path Section ─── */}
+        <div className="bg-white rounded-2xl shadow-sm border border-slate-200 p-8 mb-6">
+          <h2 className="text-xl font-bold mb-6 flex items-center gap-2">
+            <Briefcase className="w-6 h-6 text-violet-500" />
+            Career Path
+          </h2>
+          
+          <div className="mb-6">
+            <label className="block font-semibold mb-2">Select a Career Path</label>
+            <select
+              id="career-path-select"
+              value={prefs.careerPath || ''}
+              onChange={(e) => handleCareerPathChange(e.target.value || null)}
+              className="w-full bg-slate-50 border border-slate-200 rounded-xl p-4 focus:outline-none focus:ring-2 focus:ring-violet-500 text-base appearance-none cursor-pointer"
+            >
+              <option value="">None (Custom Keywords Only)</option>
+              {CAREER_PATH_NAMES.map(name => (
+                <option key={name} value={name}>{name}</option>
+              ))}
+            </select>
+            <p className="text-sm text-slate-500 mt-2">
+              Career path keywords are supplemental — they merge with your custom keywords at runtime.
+            </p>
+          </div>
+
+          {prefs.careerPath && careerPresetKeywords.length > 0 && (
+            <div className="mb-2">
+              <label className="block text-sm font-medium text-slate-600 mb-3">
+                Preset Keywords for {prefs.careerPath}
+              </label>
+              <div className="flex flex-wrap gap-2">
+                {careerPresetKeywords.map(kw => (
+                  <span key={kw} className="bg-violet-50 text-violet-700 px-3 py-1.5 rounded-lg text-sm font-medium border border-violet-200">
+                    {kw}
+                  </span>
+                ))}
+              </div>
+              <p className="text-xs text-slate-400 mt-3">
+                These keywords are read-only and not stored in your custom keywords.
+              </p>
+            </div>
+          )}
+        </div>
+
+        {/* ─── Always-On Filtering ─── */}
         <div className="bg-white rounded-2xl shadow-sm border border-slate-200 p-8 mb-6">
           <h2 className="text-xl font-bold mb-6">Always-On Filtering (No Session Required)</h2>
           
@@ -176,6 +291,7 @@ export default function App() {
           </div>
         </div>
 
+        {/* ─── Filter Surfaces ─── */}
         <div className="bg-white rounded-2xl shadow-sm border border-slate-200 p-8 mb-8">
           <h2 className="text-xl font-bold mb-6">Filter Surfaces</h2>
           <div className="space-y-4">
@@ -212,6 +328,7 @@ export default function App() {
           </button>
         </div>
 
+        {/* ─── Focus History ─── */}
         <div className="bg-white rounded-2xl shadow-sm border border-slate-200 p-8 mb-8">
           <div className="flex items-center justify-between mb-6">
             <h2 className="text-xl font-bold flex items-center gap-2">
@@ -237,6 +354,98 @@ export default function App() {
           </div>
         </div>
 
+        {/* ─── Focus Analytics Dashboard ─── */}
+        <div className="bg-white rounded-2xl shadow-sm border border-slate-200 p-8 mb-8">
+          <h2 className="text-xl font-bold flex items-center gap-2 mb-6">
+            <BarChart3 className="w-6 h-6 text-indigo-500" />
+            Focus Analytics
+          </h2>
+
+          {/* Stat Cards */}
+          <div className="grid grid-cols-3 gap-4 mb-8">
+            <div className="bg-emerald-50 border border-emerald-200 rounded-xl p-4 text-center">
+              <p className="text-3xl font-bold text-emerald-700">{todayStats.allowed}</p>
+              <p className="text-sm font-medium text-emerald-600 mt-1">Videos Allowed</p>
+            </div>
+            <div className="bg-red-50 border border-red-200 rounded-xl p-4 text-center">
+              <p className="text-3xl font-bold text-red-700">{todayStats.blocked}</p>
+              <p className="text-sm font-medium text-red-600 mt-1">Videos Blocked</p>
+            </div>
+            <div className="bg-indigo-50 border border-indigo-200 rounded-xl p-4 text-center">
+              <p className="text-3xl font-bold text-indigo-700">{focusScore}%</p>
+              <p className="text-sm font-medium text-indigo-600 mt-1">Focus Score</p>
+            </div>
+          </div>
+
+          {/* 7-Day Trend */}
+          <div className="mb-8">
+            <h3 className="text-sm font-semibold text-slate-600 uppercase tracking-wider mb-4">Weekly Trend (Blocked)</h3>
+            <div className="flex items-end gap-2 h-32">
+              {last7Days.map((day) => {
+                const height = day.stats.blocked > 0
+                  ? Math.max((day.stats.blocked / maxBlocked) * 100, 4)
+                  : 0;
+                const isToday = day.date === today;
+                return (
+                  <div key={day.date} className="flex-1 flex flex-col items-center gap-1">
+                    <span className="text-xs text-slate-500 font-medium">
+                      {day.stats.blocked > 0 ? day.stats.blocked : ''}
+                    </span>
+                    <div
+                      className={`w-full rounded-t-md transition-all ${
+                        isToday ? 'bg-indigo-500' : 'bg-indigo-200'
+                      }`}
+                      style={{ height: `${height}%`, minHeight: day.stats.blocked > 0 ? '4px' : '0px' }}
+                    />
+                    <span className={`text-xs ${isToday ? 'font-bold text-indigo-600' : 'text-slate-400'}`}>
+                      {day.label}
+                    </span>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+
+          {/* Topic Distribution */}
+          <div className="mb-6">
+            <h3 className="text-sm font-semibold text-slate-600 uppercase tracking-wider mb-4 flex items-center gap-2">
+              <Target className="w-4 h-4" />
+              Topic Distribution
+            </h3>
+            {topicDistribution.length === 0 ? (
+              <p className="text-sm text-slate-400 italic">No topic data yet. Start a focus session to see your topic breakdown.</p>
+            ) : (
+              <div className="space-y-3">
+                {topicDistribution.map(({ topic, count }) => (
+                  <div key={topic} className="flex items-center gap-3">
+                    <span className="text-sm font-medium text-slate-700 w-28 truncate flex-shrink-0" title={topic}>
+                      {topic}
+                    </span>
+                    <div className="flex-1 bg-slate-100 rounded-full h-5 overflow-hidden">
+                      <div
+                        className="bg-gradient-to-r from-indigo-400 to-violet-500 h-full rounded-full transition-all"
+                        style={{ width: `${(count / maxTopicCount) * 100}%` }}
+                      />
+                    </div>
+                    <span className="text-sm font-semibold text-slate-600 w-10 text-right">{count}</span>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+
+          {/* Reset Analytics */}
+          <div className="pt-4 border-t border-slate-100">
+            <button
+              onClick={handleResetAnalytics}
+              className="text-sm text-slate-400 hover:text-red-500 transition-colors"
+            >
+              Reset Analytics
+            </button>
+          </div>
+        </div>
+
+        {/* ─── Privacy Policy ─── */}
         <div className="bg-white rounded-2xl shadow-sm border border-slate-200 p-8 mb-8">
           <h2 className="text-xl font-bold flex items-center gap-2 mb-4">
             <Shield className="w-6 h-6 text-emerald-500" />
@@ -249,6 +458,7 @@ export default function App() {
               <li>We do <strong>not</strong> send your data to any remote servers, cloud databases, or third-party analytics services.</li>
               <li>We do <strong>not</strong> track your general browser history. We only process the title of elements dynamically while you are actively on youtube.com to hide distractions.</li>
               <li>Keywords generated for filtering are processed entirely within the extension.</li>
+              <li>Focus analytics data (allowed/blocked counts, topic distribution) is stored entirely on your device and never transmitted externally.</li>
             </ul>
           </div>
         </div>
