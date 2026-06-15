@@ -2,7 +2,12 @@ export const SelectorConfig = {
   version: 1,
   home: {
     root: 'ytd-rich-grid-renderer #contents',
-    items: ['ytd-rich-item-renderer', 'ytd-rich-section-renderer'],
+    items: ['ytd-rich-item-renderer', 'ytd-rich-section-renderer', 'ytd-video-renderer'],
+    shelves: ['ytd-rich-section-renderer']
+  },
+  subscriptions: {
+    root: 'ytd-rich-grid-renderer #contents',
+    items: ['ytd-rich-item-renderer', 'ytd-rich-section-renderer', 'ytd-video-renderer'],
     shelves: ['ytd-rich-section-renderer']
   },
   search: {

@@ -30,8 +30,21 @@ export function extractMetadata(el: Element) {
      if (link) ariaLabel = link.getAttribute('aria-label') || '';
   }
   
+  // --- START OF INJECTED LOGIC ---
+  const isMetadataEmpty = !title && !channel && !ariaLabel;
+  const logPayload = {
+    TAG: el.tagName,
+    HTML: el.outerHTML.substring(0, 300),
+    TITLE: title,
+    CHANNEL: channel,
+    ARIA: ariaLabel,
+    META_NULL: isMetadataEmpty
+  };
+  console.log('[FT_DEBUG]', JSON.stringify(logPayload, null, 2));
+  // --- END OF INJECTED LOGIC ---
+
   // Skeleton detection: if it's empty but has a skeleton class or structure
-  const isSkeleton = !title && !channel && !ariaLabel && 
+  const isSkeleton = isMetadataEmpty && 
     (el.querySelector('.skeleton') || el.querySelector('#video-title-skeleton') || (el as HTMLElement).innerText?.trim() === '');
 
   if (isSkeleton) {
@@ -39,7 +52,7 @@ export function extractMetadata(el: Element) {
   }
 
   // If it's truly empty and not a skeleton, it might just be a non-video element or still loading
-  if (!title && !channel && !ariaLabel) {
+  if (isMetadataEmpty) {
     return null;
   }
   

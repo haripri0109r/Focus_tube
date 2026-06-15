@@ -1,5 +1,6 @@
 import { SessionState, SessionRecord } from '../types';
 import { expandKeywords } from './keyword-expansion';
+import { recordDailyStats, getPrefs } from '../lib/storage';
 
 export async function handleSessionMessage(message: any, sender: chrome.runtime.MessageSender, sendResponse: (res: any) => void) {
   const { type, tabId } = message;
@@ -71,9 +72,43 @@ export async function handleSessionMessage(message: any, sender: chrome.runtime.
       const data = await chrome.storage.local.get(sessionKey);
       const session = data[sessionKey] as SessionState;
       if (session) {
+        // Capture previous cumulative values BEFORE update
+        const prevHidden = session.hiddenCount;
+        const prevShown = session.shownCount;
+
+        // Existing update (unchanged — Math.max for cumulative totals)
         session.hiddenCount = Math.max(session.hiddenCount, hiddenCount || 0);
         session.shownCount = Math.max(session.shownCount, shownCount || 0);
         await chrome.storage.local.set({ [sessionKey]: session });
+
+        // Compute deltas for analytics (always >= 0 due to monotonic values)
+        const deltaBlocked = session.hiddenCount - prevHidden;
+        const deltaAllowed = session.shownCount - prevShown;
+        if (deltaBlocked > 0 || deltaAllowed > 0) {
+          await recordDailyStats(deltaAllowed, deltaBlocked, session.topic);
+        }
+      } else {
+        // No active session — Always-On stats tracking fallback
+        const alwaysOnKey = `alwayson_${targetTabId}`;
+        const alwaysOnData = await chrome.storage.local.get(alwaysOnKey);
+        const record = (alwaysOnData[alwaysOnKey] as { hiddenCount?: number; shownCount?: number } | undefined) || { hiddenCount: 0, shownCount: 0 };
+
+        const prevHidden = record.hiddenCount || 0;
+        const prevShown = record.shownCount || 0;
+
+        const updatedRecord = {
+          hiddenCount: Math.max(prevHidden, hiddenCount || 0),
+          shownCount: Math.max(prevShown, shownCount || 0)
+        };
+        await chrome.storage.local.set({ [alwaysOnKey]: updatedRecord });
+
+        const deltaBlocked = updatedRecord.hiddenCount - prevHidden;
+        const deltaAllowed = updatedRecord.shownCount - prevShown;
+        if (deltaBlocked > 0 || deltaAllowed > 0) {
+          const prefs = await getPrefs();
+          const topicName = prefs.careerPath || prefs.defaultTopic || 'Always-On';
+          await recordDailyStats(deltaAllowed, deltaBlocked, topicName);
+        }
       }
       sendResponse({ ok: true });
     }

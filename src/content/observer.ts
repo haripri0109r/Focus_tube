@@ -52,6 +52,7 @@ export function setupObserver(pageType: PageType, keywords: string[], topic: str
   
   let rootSelector = '';
   if (pageType === 'home') rootSelector = 'ytd-rich-grid-renderer';
+  else if (pageType === 'subscriptions') rootSelector = 'ytd-rich-grid-renderer';
   else if (pageType === 'search') rootSelector = 'ytd-section-list-renderer #contents';
   else if (pageType === 'watch') rootSelector = '#related';
   
@@ -82,7 +83,7 @@ export function disconnectObserver() {
 }
 
 function processFilters(pageType: PageType, keywords: string[], prefs: UserPrefs) {
-  if (pageType === 'home' && prefs.filterHome) {
+  if ((pageType === 'home' || pageType === 'subscriptions') && prefs.filterHome) {
     applyHomepageFilter(keywords, onHideCallback, onShowCallback);
   } else if (pageType === 'search' && prefs.filterSearch) {
     applySearchFilter(keywords, onHideCallback, onShowCallback, prefs.filterShorts);

@@ -1,4 +1,5 @@
 import { PageType, SessionState, UserPrefs } from '../types';
+import { CAREER_PATH_PRESETS } from '../data/career-paths';
 import { setupSpaNavigator } from './spa-navigator';
 import { setupObserver, disconnectObserver, setStatsCallbacks } from './observer';
 import { restoreAllHiddenElements, clearAllProcessedFlags } from './restore';
@@ -22,7 +23,7 @@ async function init() {
   
   const prefsData = await chrome.storage.local.get('focustube_prefs');
   currentPrefs = (prefsData.focustube_prefs as UserPrefs) || {
-    alwaysOn: false, defaultTopic: '', defaultKeywords: [],
+    alwaysOn: false, defaultTopic: '', defaultKeywords: [], careerPath: null,
     filterHome: true, filterSearch: true, filterSidebar: true, filterShorts: true
   };
   
@@ -90,7 +91,7 @@ function flushStats() {
 function isFilterActive(): boolean {
   if (currentSession?.status === 'active') return true;
   if (currentSession?.status === 'paused') return false; 
-  if (currentPrefs?.alwaysOn && currentPrefs.defaultKeywords.length > 0) return true;
+  if (currentPrefs?.alwaysOn && (currentPrefs.defaultKeywords.length > 0 || currentPrefs.careerPath)) return true;
   return false;
 }
 
@@ -133,6 +134,7 @@ function removePreloadCss() {
 
 function getPageType(pathname: string): PageType {
   if (pathname === '/' || pathname === '/feed/home') return 'home';
+  if (pathname === '/feed/subscriptions') return 'subscriptions';
   if (pathname === '/results') return 'search';
   if (pathname === '/watch') return 'watch';
   if (pathname.startsWith('/shorts')) return 'shorts';
@@ -140,8 +142,19 @@ function getPageType(pathname: string): PageType {
 }
 
 function getKeywords(): string[] {
-  if (currentSession?.status === 'active') return currentSession.keywords;
-  if (currentPrefs?.alwaysOn) return currentPrefs.defaultKeywords;
+  // Career path keywords (supplemental, appended after session/custom)
+  const careerKeywords = currentPrefs?.careerPath
+    ? (CAREER_PATH_PRESETS[currentPrefs.careerPath] || [])
+    : [];
+
+  if (currentSession?.status === 'active') {
+    // Priority: session keywords first, then career path keywords
+    return Array.from(new Set([...currentSession.keywords, ...careerKeywords]));
+  }
+  if (currentPrefs?.alwaysOn) {
+    // Priority: custom keywords first, then career path keywords
+    return Array.from(new Set([...currentPrefs.defaultKeywords, ...careerKeywords]));
+  }
   return [];
 }
 
