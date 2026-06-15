@@ -15,6 +15,7 @@ export interface UserPrefs {
   alwaysOn: boolean;
   defaultTopic: string;
   defaultKeywords: string[];
+  careerPath: string | null;
   filterHome: boolean;
   filterSearch: boolean;
   filterSidebar: boolean;
@@ -30,4 +31,14 @@ export interface SessionRecord {
   date: string; // YYYY-MM-DD local
 }
 
-export type PageType = 'home' | 'search' | 'watch' | 'shorts' | 'other';
+export interface DailyStats {
+  allowed: number;
+  blocked: number;
+  topics: Record<string, number>; // topic name → blocked count
+}
+
+export interface AnalyticsData {
+  dailyStats: Record<string, DailyStats>; // "YYYY-MM-DD" → stats
+}
+
+export type PageType = 'home' | 'search' | 'watch' | 'shorts' | 'subscriptions' | 'other';
