@@ -31,38 +31,60 @@ export async function handleSessionMessage(message: any, sender: chrome.runtime.
         hiddenCount: 0,
         shownCount: 0
       };
-      await chrome.storage.local.set({ [sessionKey]: session });
+      
+      // Broadcast to all active YouTube tabs
+      const tabs = await chrome.tabs.query({ url: "*://*.youtube.com/*" });
+      for (const t of tabs) {
+        if (t.id) {
+          const sess = { ...session, isMirror: t.id !== targetTabId };
+          await chrome.storage.local.set({ [`session_${t.id}`]: sess });
+        }
+      }
+      
       sendResponse({ ok: true, session });
     }
     
     else if (type === 'SESSION_PAUSE') {
-      const data = await chrome.storage.local.get(sessionKey);
-      const session = data[sessionKey] as SessionState;
-      if (session && session.status === 'active') {
-        session.status = 'paused';
-        session.pauseStartedAt = Date.now();
-        await chrome.storage.local.set({ [sessionKey]: session });
+      const data = await chrome.storage.local.get(null);
+      for (const key of Object.keys(data)) {
+        if (key.startsWith('session_')) {
+          const session = data[key] as SessionState;
+          if (session && session.status === 'active') {
+            session.status = 'paused';
+            session.pauseStartedAt = Date.now();
+            await chrome.storage.local.set({ [key]: session });
+          }
+        }
       }
       sendResponse({ ok: true });
     }
     
     else if (type === 'SESSION_RESUME') {
-      const data = await chrome.storage.local.get(sessionKey);
-      const session = data[sessionKey] as SessionState;
-      if (session && session.status === 'paused' && session.pauseStartedAt) {
-        session.status = 'active';
-        session.pausedDuration += Date.now() - session.pauseStartedAt;
-        session.pauseStartedAt = undefined;
-        await chrome.storage.local.set({ [sessionKey]: session });
+      const data = await chrome.storage.local.get(null);
+      for (const key of Object.keys(data)) {
+        if (key.startsWith('session_')) {
+          const session = data[key] as SessionState;
+          if (session && session.status === 'paused' && session.pauseStartedAt) {
+            session.status = 'active';
+            session.pausedDuration += Date.now() - session.pauseStartedAt;
+            session.pauseStartedAt = undefined;
+            await chrome.storage.local.set({ [key]: session });
+          }
+        }
       }
       sendResponse({ ok: true });
     }
     
     else if (type === 'SESSION_END') {
-      const data = await chrome.storage.local.get(sessionKey);
-      const session = data[sessionKey] as SessionState;
-      if (session) {
-        await endSession(targetTabId, session);
+      const data = await chrome.storage.local.get(null);
+      for (const key of Object.keys(data)) {
+        if (key.startsWith('session_')) {
+          const sess = data[key] as SessionState;
+          const tId = parseInt(key.replace('session_', ''), 10);
+          if (!isNaN(tId)) {
+            await endSession(tId, sess);
+          }
+        }
       }
       sendResponse({ ok: true });
     }
@@ -133,8 +155,8 @@ export async function endSession(tabId: number, session: SessionState) {
   const durationMs = endTime - session.startTime - session.pausedDuration;
   const durationSeconds = Math.floor(durationMs / 1000);
   
-  // Only record if duration >= 1 second
-  if (durationSeconds >= 1) {
+  // Only record if duration >= 1 second and not a mirror tab
+  if (durationSeconds >= 1 && !session.isMirror) {
     const record: SessionRecord = {
       topic: session.topic,
       keywords: session.keywords,

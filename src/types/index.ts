@@ -9,6 +9,7 @@ export interface SessionState {
   pauseStartedAt?: number;
   hiddenCount: number;
   shownCount: number;
+  isMirror?: boolean;
 }
 
 export interface UserPrefs {

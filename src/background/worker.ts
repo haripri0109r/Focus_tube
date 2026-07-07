@@ -14,8 +14,29 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
   if (message.type === 'GET_CONTEXT') {
     const tabId = sender.tab?.id;
     const pageUrl = sender.tab?.url;
-    sendResponse({ tabId, pageUrl });
-    return false; // synchronous response
+    
+    (async () => {
+      if (tabId) {
+        const data = await chrome.storage.local.get(null);
+        if (!data[`session_${tabId}`]) {
+          let activeSession = null;
+          for (const key of Object.keys(data)) {
+            if (key.startsWith('session_')) {
+              const sess = data[key] as any;
+              if (sess && sess.status === 'active') {
+                activeSession = { ...sess, isMirror: true, hiddenCount: 0, shownCount: 0 };
+                break;
+              }
+            }
+          }
+          if (activeSession) {
+            await chrome.storage.local.set({ [`session_${tabId}`]: activeSession });
+          }
+        }
+      }
+      sendResponse({ tabId, pageUrl });
+    })();
+    return true; // async
   }
   
   if (message.type === 'OPEN_OPTIONS') {
