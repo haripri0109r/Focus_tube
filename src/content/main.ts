@@ -22,10 +22,16 @@ async function init() {
   currentTabId = result.tabId;
   
   const prefsData = await chrome.storage.local.get('focustube_prefs');
-  currentPrefs = (prefsData.focustube_prefs as UserPrefs) || {
-    alwaysOn: false, defaultTopic: '', defaultKeywords: [], careerPath: null,
-    filterHome: true, filterSearch: true, filterSidebar: true, filterShorts: true
-  };
+  const p = prefsData.focustube_prefs as UserPrefs | undefined;
+  if (p) {
+    p.defaultKeywords = p.defaultKeywords ?? [];
+    currentPrefs = p;
+  } else {
+    currentPrefs = {
+      alwaysOn: false, defaultTopic: '', defaultKeywords: [], careerPath: null,
+      filterHome: true, filterSearch: true, filterSidebar: true, filterShorts: true
+    };
+  }
   
   const sessionKey = `session_${currentTabId}`;
   const sessionData = await chrome.storage.local.get(sessionKey);
@@ -37,7 +43,9 @@ async function init() {
     if (area !== 'local') return;
     
     if (changes.focustube_prefs) {
-      currentPrefs = changes.focustube_prefs.newValue as UserPrefs;
+      const p = changes.focustube_prefs.newValue as UserPrefs;
+      if (p) p.defaultKeywords = p.defaultKeywords ?? [];
+      currentPrefs = p;
       onFilterStateChange();
     }
     
@@ -91,7 +99,7 @@ function flushStats() {
 function isFilterActive(): boolean {
   if (currentSession?.status === 'active') return true;
   if (currentSession?.status === 'paused') return false; 
-  if (currentPrefs?.alwaysOn && (currentPrefs.defaultKeywords.length > 0 || currentPrefs.careerPath)) return true;
+  if (currentPrefs?.alwaysOn && ((currentPrefs.defaultKeywords ?? []).length > 0 || currentPrefs.careerPath)) return true;
   return false;
 }
 
@@ -153,7 +161,7 @@ function getKeywords(): string[] {
   }
   if (currentPrefs?.alwaysOn) {
     // Priority: custom keywords first, then career path keywords
-    return Array.from(new Set([...currentPrefs.defaultKeywords, ...careerKeywords]));
+    return Array.from(new Set([...(currentPrefs.defaultKeywords ?? []), ...careerKeywords]));
   }
   return [];
 }

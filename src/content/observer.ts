@@ -15,7 +15,7 @@ let onShowCallback: () => void = () => {};
  * Waits for a selector to exist in the DOM before executing a callback.
  * This prevents race conditions on initial page load and SPA navigations.
  */
-function waitForElement(selector: string, callback: (element: Element) => void) {
+function waitForElement(selector: string, callback: (element: Element, isFallback: boolean) => void) {
   let attempts = 0;
   const maxAttempts = 50; // 5 seconds timeout (50 * 100ms)
 
@@ -23,12 +23,13 @@ function waitForElement(selector: string, callback: (element: Element) => void) 
     const element = document.querySelector(selector);
     if (element) {
       clearInterval(interval);
-      callback(element);
+      callback(element, false);
     } else {
       attempts++;
       if (attempts > maxAttempts) {
         clearInterval(interval);
-        console.warn(`FocusTube: Timed out waiting for element '${selector}'`);
+        console.warn(`FocusTube: Timed out waiting for element '${selector}', falling back to document.body`);
+        callback(document.body, true);
       }
     }
   }, 100);
@@ -59,18 +60,28 @@ export function setupObserver(pageType: PageType, keywords: string[], topic: str
   if (!rootSelector) return;
   
   // Wait for the root element to be present before attaching the observer
-  waitForElement(rootSelector, (root) => {
-    // Initial pass now that we have the root
+  waitForElement(rootSelector, (root, isFallback) => {
+    // Initial pass now that we have the root (or body)
     processFilters(pageType, keywords, prefs);
 
+    let currentObserved = root;
     currentObserver = new MutationObserver(() => {
       if (debounceTimer) clearTimeout(debounceTimer);
       debounceTimer = window.setTimeout(() => {
+        if (isFallback && currentObserved === document.body) {
+           const realRoot = document.querySelector(rootSelector);
+           if (realRoot) {
+               currentObserver?.disconnect();
+               currentObserved = realRoot;
+               currentObserver?.observe(realRoot, { childList: true, subtree: true });
+               console.log(`FocusTube: Reconnected observer to '${rootSelector}'`);
+           }
+        }
         processFilters(pageType, keywords, prefs);
       }, 150);
     });
     
-    currentObserver.observe(root, { childList: true, subtree: true });
+    currentObserver.observe(currentObserved, { childList: true, subtree: true });
   });
 }
 

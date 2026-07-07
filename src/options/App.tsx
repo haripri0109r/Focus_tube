@@ -23,6 +23,7 @@ export default function App() {
     chrome.storage.local.get(['focustube_prefs', 'focustube_history', 'focustube_analytics'], (res) => {
       if (res.focustube_prefs) {
         const p = res.focustube_prefs as UserPrefs;
+        p.defaultKeywords = p.defaultKeywords ?? [];
         setPrefs(p);
         setTopicInput(p.defaultTopic);
       }
