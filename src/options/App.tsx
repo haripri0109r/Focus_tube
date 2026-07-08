@@ -134,7 +134,7 @@ export default function App() {
   // ─── Analytics Helpers ───
 
   const today = new Date().toLocaleDateString('en-CA');
-  const todayStats: DailyStats = (analytics.dailyStats || {})[today] || { allowed: 0, blocked: 0, topics: {} };
+  const todayStats: DailyStats = (analytics.dailyStats || {})[today] || { allowed: 0, blocked: 0, shortsBlocked: 0, topics: {} };
   
   const focusScore = (todayStats.allowed + todayStats.blocked) > 0
     ? Math.round((todayStats.blocked / (todayStats.allowed + todayStats.blocked)) * 100)
@@ -293,7 +293,7 @@ export default function App() {
         </div>
 
         {/* ─── Filter Surfaces ─── */}
-        <div className="bg-white rounded-2xl shadow-sm border border-slate-200 p-8 mb-8">
+        <div className="bg-white rounded-2xl shadow-sm border border-slate-200 p-8 mb-6">
           <h2 className="text-xl font-bold mb-6">Filter Surfaces</h2>
           <div className="space-y-4">
             {[
@@ -315,6 +315,27 @@ export default function App() {
                 </button>
               </div>
             ))}
+          </div>
+        </div>
+
+        {/* ─── Strict Learning Mode ─── */}
+        <div className="bg-white rounded-2xl shadow-sm border border-slate-200 p-8 mb-8">
+          <h2 className="text-xl font-bold mb-2 flex items-center gap-2">
+            <Shield className="w-6 h-6 text-red-500" />
+            Strict Learning Mode
+          </h2>
+          <p className="text-slate-500 text-sm mb-6">
+            When enabled, only videos with a very high relevance score (&gt;90) are shown.
+            Everything else disappears — no exceptions. Ideal for exam prep or deep focus sessions.
+          </p>
+          <div className="flex items-center justify-between p-4 bg-red-50 border border-red-200 rounded-xl">
+            <div>
+              <p className="font-semibold text-red-800">Enable Strict Mode</p>
+              <p className="text-sm text-red-600">Requires very strong topic match to show a video</p>
+            </div>
+            <button onClick={() => handleChange('strictMode', !prefs.strictMode)} className="text-red-600">
+              {prefs.strictMode ? <ToggleRight className="w-10 h-10" /> : <ToggleLeft className="w-10 h-10 text-red-300" />}
+            </button>
           </div>
         </div>
 
