@@ -1,6 +1,99 @@
 {
-  "React": ["react", "reactjs", "nextjs", "jsx", "hooks", "frontend"],
-  "DSA": ["dsa", "algorithm", "leetcode", "data structure", "binary tree", "dynamic programming"],
-  "Machine Learning": ["machine learning", "ml", "ai", "artificial intelligence", "neural network", "deep learning", "pytorch", "tensorflow"],
-  "Productivity": ["productivity", "focus", "time management", "pomodoro", "study with me"]
+  "DSA": [
+    "dsa", "data structure", "data structures", "algorithm", "algorithms",
+    "leetcode", "leetcode solution", "codeforces", "codechef", "hackerrank",
+    "competitive programming", "cp", "acm", "icpc",
+    "binary tree", "binary search tree", "bst", "avl tree",
+    "graph", "graphs", "graph theory",
+    "bfs", "dfs", "breadth first search", "depth first search",
+    "dynamic programming", "dp", "memoization", "tabulation",
+    "greedy algorithm", "greedy", "backtracking",
+    "divide and conquer", "recursion",
+    "linked list", "doubly linked list", "circular linked list",
+    "stack", "queue", "deque", "priority queue", "monotonic stack",
+    "heap", "min heap", "max heap", "binary heap",
+    "hash map", "hash table", "hashing", "hash set",
+    "trie", "prefix tree", "suffix tree",
+    "segment tree", "fenwick tree", "bit",
+    "union find", "disjoint set",
+    "sliding window", "two pointer", "fast slow pointer",
+    "binary search", "search algorithm",
+    "sorting", "quicksort", "mergesort", "heapsort",
+    "bubble sort", "insertion sort", "selection sort", "counting sort",
+    "complexity", "time complexity", "space complexity", "big o",
+    "interview preparation", "coding interview", "interview questions",
+    "faang", "maang", "system design",
+    "neetcode", "striver", "take u forward", "love babbar",
+    "kunal kushwaha", "apna college", "jenny lecture",
+    "gate smashers", "abdul bari", "techdose", "neso academy",
+    "codehelp", "code with harry", "geeksforgeeks"
+  ],
+  "React": [
+    "react", "reactjs", "react js", "react hooks", "nextjs", "next.js",
+    "jsx", "tsx", "redux", "zustand", "react query", "tanstack",
+    "vite react", "frontend", "component", "state management",
+    "context api", "usereducer", "useeffect", "usestate",
+    "server components", "react server", "vercel"
+  ],
+  "Python": [
+    "python", "python3", "python tutorial", "django", "flask", "fastapi",
+    "pandas", "numpy", "matplotlib", "seaborn", "scikit", "pip",
+    "virtualenv", "conda", "jupyter", "notebook", "scripting"
+  ],
+  "JavaScript": [
+    "javascript", "js", "es6", "es2015", "es2020", "typescript", "ts",
+    "nodejs", "node.js", "npm", "dom", "async await", "promise",
+    "closure", "prototype", "event loop", "scope", "hoisting"
+  ],
+  "Machine Learning": [
+    "machine learning", "ml", "ai", "artificial intelligence",
+    "deep learning", "neural network", "neural networks",
+    "scikit-learn", "sklearn", "tensorflow", "pytorch", "keras",
+    "regression", "classification", "clustering", "decision tree",
+    "random forest", "xgboost", "svm", "knn", "naive bayes",
+    "feature engineering", "model training", "overfitting",
+    "cross validation", "hyperparameter", "gradient descent"
+  ],
+  "System Design": [
+    "system design", "distributed systems", "scalability",
+    "load balancer", "load balancing", "caching", "redis",
+    "database design", "microservices", "api design", "rest api",
+    "cap theorem", "consistent hashing", "sharding",
+    "message queue", "kafka", "rabbitmq", "cdn",
+    "availability", "reliability", "fault tolerance",
+    "horizontal scaling", "vertical scaling"
+  ],
+  "Java": [
+    "java", "java tutorial", "spring boot", "spring framework",
+    "hibernate", "jpa", "jdbc", "maven", "gradle",
+    "jvm", "garbage collection", "multithreading", "concurrency",
+    "design patterns", "solid principles", "microservices java"
+  ],
+  "DevOps": [
+    "devops", "docker", "dockerfile", "docker compose",
+    "kubernetes", "k8s", "helm", "pod", "deployment",
+    "jenkins", "ci cd", "cicd", "pipeline",
+    "ansible", "terraform", "infrastructure as code",
+    "linux", "bash", "shell script",
+    "aws", "azure", "gcp", "cloud",
+    "monitoring", "prometheus", "grafana", "elk stack"
+  ],
+  "SQL": [
+    "sql", "mysql", "postgresql", "postgres", "sqlite",
+    "database", "query", "joins", "inner join", "left join",
+    "indexing", "normalization", "stored procedure", "trigger",
+    "transaction", "acid", "schema", "nosql vs sql"
+  ],
+  "Productivity": [
+    "productivity", "focus", "time management", "pomodoro",
+    "study with me", "deep work", "habits", "goal setting",
+    "note taking", "second brain", "obsidian", "notion"
+  ],
+  "Cyber Security": [
+    "cyber security", "cybersecurity", "ethical hacking",
+    "penetration testing", "pentest", "ctf", "capture the flag",
+    "owasp", "kali linux", "burp suite", "metasploit",
+    "network security", "firewall", "vpn", "encryption",
+    "sql injection", "xss", "csrf", "bug bounty"
+  ]
 }
