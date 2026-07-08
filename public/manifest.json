@@ -1,9 +1,9 @@
 {
   "manifest_version": 3,
   "name": "FocusTube",
-  "version": "1.0.0",
-  "description": "Minimize YouTube distractions while you focus on what you want to learn.",
-  "permissions": ["storage", "activeTab"],
+  "version": "1.1.0",
+  "description": "Transform YouTube into a dedicated learning platform. Block entertainment, allow only your topic.",
+  "permissions": ["storage", "activeTab", "tabs"],
   "host_permissions": ["*://*.youtube.com/*"],
   "content_scripts": [
     {
