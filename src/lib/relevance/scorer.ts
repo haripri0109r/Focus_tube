@@ -1,86 +1,334 @@
-import { EDUCATIONAL_KEYWORDS, ENTERTAINMENT_KEYWORDS, EDUCATIONAL_CHANNELS } from './constants';
+/**
+ * FocusTube — Relevance Scorer
+ *
+ * Scores a video's relevance to the user's learning topic using multiple
+ * weighted signals. The default bias is always toward HIDING — a video must
+ * earn its way onto the page, not the other way around.
+ *
+ * Score interpretation:
+ *   >= SHOW_THRESHOLD (default 60, strict 90)  → show
+ *   < SHOW_THRESHOLD                           → hide
+ *
+ * A video with no topic keyword match AND no educational signals → score ≈ 0 → hide.
+ */
+
+import {
+  EDUCATIONAL_KEYWORDS,
+  ENTERTAINMENT_KEYWORDS,
+  EDUCATIONAL_CHANNELS,
+  ENTERTAINMENT_CHANNEL_PATTERNS,
+} from './constants';
+import { debugLogSync } from '../debug';
+
+// ---------------------------------------------------------------------------
+// Thresholds
+// ---------------------------------------------------------------------------
+
+/** Standard mode: show if score >= this value */
+const STANDARD_SHOW_THRESHOLD = 60;
+
+/** Strict mode: only show if score >= this value */
+const STRICT_SHOW_THRESHOLD = 90;
+
+/** Score added for each topic keyword that directly matches */
+const TOPIC_MATCH_SCORE = 50;
+
+/** Score added for partial/substring topic match */
+const TOPIC_PARTIAL_SCORE = 25;
+
+/** Score added per educational keyword hit */
+const EDUCATIONAL_KW_SCORE = 10;
+
+/** Score deducted per entertainment keyword hit */
+const ENTERTAINMENT_KW_SCORE = -25;
+
+/** Score added for a known educational channel */
+const EDUCATIONAL_CHANNEL_SCORE = 55;
+
+/** Score deducted for a known entertainment channel pattern */
+const ENTERTAINMENT_CHANNEL_SCORE = -70;
+
+/** Score deducted for clear entertainment contextual signals */
+const CONTEXTUAL_PENALTY_HEAVY = -60;
+const CONTEXTUAL_PENALTY_MEDIUM = -40;
+const CONTEXTUAL_PENALTY_LIGHT = -20;
+
+// ---------------------------------------------------------------------------
+// Public interface
+// ---------------------------------------------------------------------------
 
 export interface RelevanceScore {
+  /** Raw calculated score (can be negative) */
   score: number;
-  isEducational: boolean;
+  /** Whether the video matched at least one topic keyword */
   matchesTopic: boolean;
+  /** Whether the final decision is to show or hide the video */
   finalDecision: 'show' | 'hide';
+  /** Human-readable reason for the decision (debug use) */
+  reason: string;
 }
+
+// ---------------------------------------------------------------------------
+// Text normalization
+// ---------------------------------------------------------------------------
+
+/**
+ * Normalizes text for comparison:
+ * - Lowercase
+ * - Replace common punctuation with spaces
+ * - Collapse whitespace
+ * - Remove common emoji patterns that inflate/deflate keyword matching
+ */
+function normalize(text: string): string {
+  return text
+    .toLowerCase()
+    .replace(/[|!@#$%^&*(){}\[\]<>]/g, ' ')
+    .replace(/[_\-]/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim();
+}
+
+/**
+ * Returns true if `text` contains `term` as a whole-word or phrase match.
+ * This avoids "react" matching "reaction" by requiring word boundaries.
+ */
+function containsPhrase(text: string, term: string): boolean {
+  if (!term || !text) return false;
+  const t = normalize(term);
+  const tx = normalize(text);
+
+  // Exact substring match first (fastest path for multi-word phrases)
+  if (tx.includes(t)) return true;
+
+  // For single words, also check word boundaries
+  if (!t.includes(' ')) {
+    const regex = new RegExp(`\\b${t.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}\\b`);
+    return regex.test(tx);
+  }
+
+  return false;
+}
+
+// ---------------------------------------------------------------------------
+// Shorts detection helpers
+// ---------------------------------------------------------------------------
+
+const SHORTS_SIGNALS = ['#shorts', '#short', '#reels', '#reel', '#youtubeshorts'];
+
+function isLikelyShorts(title: string, ariaLabel: string, url?: string): boolean {
+  const combined = `${title} ${ariaLabel} ${url ?? ''}`.toLowerCase();
+  if (combined.includes('/shorts/')) return true;
+  for (const s of SHORTS_SIGNALS) {
+    if (combined.includes(s)) return true;
+  }
+  return false;
+}
+
+// ---------------------------------------------------------------------------
+// Main scorer
+// ---------------------------------------------------------------------------
 
 export function calculateRelevance(
   title: string,
   channel: string,
   ariaLabel: string,
-  topicKeywords: string[]
+  topicKeywords: string[],
+  strictMode = false,
 ): RelevanceScore {
-  const cleanTitle = title.toLowerCase();
-  const cleanChannel = channel.toLowerCase();
-  const cleanAria = ariaLabel.toLowerCase();
-  const fullText = `${cleanTitle} ${cleanChannel} ${cleanAria}`;
+
+  // Guard: if no keywords configured, show everything (filter is inactive)
+  if (!topicKeywords || topicKeywords.length === 0) {
+    return { score: 100, matchesTopic: false, finalDecision: 'show', reason: 'no-keywords' };
+  }
+
+  const normTitle = normalize(title);
+  const normChannel = normalize(channel);
+  const normAria = normalize(ariaLabel);
+  const fullText = `${normTitle} ${normChannel} ${normAria}`;
 
   let score = 0;
   let matchesTopic = false;
+  let topicMatchCount = 0;
+  const reasons: string[] = [];
 
-  // 1. Topic Match (Essential)
-  // If the video doesn't match the user's specific topic at all, it's a weak candidate
+  // ------------------------------------------------------------------
+  // Signal 1: Shorts detection — immediate heavy penalty
+  // ------------------------------------------------------------------
+  if (isLikelyShorts(title, ariaLabel)) {
+    score += -100;
+    reasons.push('shorts-signal');
+    return buildResult(score, false, strictMode, reasons);
+  }
+
+  // ------------------------------------------------------------------
+  // Signal 2: Topic keyword matching (highest weight)
+  // ------------------------------------------------------------------
   for (const keyword of topicKeywords) {
-    if (fullText.includes(keyword.toLowerCase())) {
-      score += 50;
+    if (containsPhrase(fullText, keyword)) {
+      score += TOPIC_MATCH_SCORE;
       matchesTopic = true;
-      break; 
+      topicMatchCount++;
+      reasons.push(`topic-match:${keyword}`);
+      // Cap topic bonuses at 3 matches to prevent score inflation
+      if (topicMatchCount >= 3) break;
     }
   }
 
-  // 2. Educational Signals (Positive)
-  for (const word of EDUCATIONAL_KEYWORDS) {
-    if (fullText.includes(word)) {
-      score += 15;
+  // Partial/substring topic match (weaker signal)
+  if (!matchesTopic) {
+    for (const keyword of topicKeywords) {
+      const kw = normalize(keyword);
+      if (kw.length >= 4 && fullText.includes(kw)) {
+        score += TOPIC_PARTIAL_SCORE;
+        matchesTopic = true;
+        reasons.push(`topic-partial:${keyword}`);
+        break;
+      }
     }
   }
 
-  // 3. Known Educational Channels (Strong Positive)
-  for (const knownChannel of EDUCATIONAL_CHANNELS) {
-    if (cleanChannel.includes(knownChannel)) {
-      score += 40;
+  // ------------------------------------------------------------------
+  // Signal 3: Educational channel (strong positive)
+  // ------------------------------------------------------------------
+  let isKnownEduChannel = false;
+  for (const ch of EDUCATIONAL_CHANNELS) {
+    if (containsPhrase(normChannel, ch)) {
+      score += EDUCATIONAL_CHANNEL_SCORE;
+      isKnownEduChannel = true;
+      reasons.push(`edu-channel:${ch}`);
       break;
     }
   }
 
-  // 4. Entertainment Signals (Negative)
-  for (const word of ENTERTAINMENT_KEYWORDS) {
-    if (fullText.includes(word)) {
-      score -= 30;
+  // ------------------------------------------------------------------
+  // Signal 4: Entertainment channel pattern (strong negative)
+  // ------------------------------------------------------------------
+  for (const pattern of ENTERTAINMENT_CHANNEL_PATTERNS) {
+    if (containsPhrase(normChannel, pattern)) {
+      score += ENTERTAINMENT_CHANNEL_SCORE;
+      reasons.push(`ent-channel:${pattern}`);
+      break;
     }
   }
 
-  // 5. Contextual Penalties (e.g., specific combinations)
-  if (cleanTitle.includes('reaction') && !cleanTitle.includes('chemical reaction')) {
-    score -= 40;
+  // ------------------------------------------------------------------
+  // Signal 5: Educational keywords (positive, capped)
+  // ------------------------------------------------------------------
+  let eduHits = 0;
+  for (const word of EDUCATIONAL_KEYWORDS) {
+    if (containsPhrase(fullText, word)) {
+      score += EDUCATIONAL_KW_SCORE;
+      eduHits++;
+      if (eduHits >= 8) break; // cap at +80 from this signal
+    }
   }
-  
-  if (cleanTitle.includes('official video') || cleanTitle.includes('official audio')) {
-    score -= 50;
+  if (eduHits > 0) reasons.push(`edu-keywords:${eduHits}`);
+
+  // ------------------------------------------------------------------
+  // Signal 6: Entertainment keywords (negative, uncapped — deliberate)
+  // ------------------------------------------------------------------
+  let entHits = 0;
+  for (const word of ENTERTAINMENT_KEYWORDS) {
+    if (containsPhrase(fullText, word)) {
+      score += ENTERTAINMENT_KW_SCORE;
+      entHits++;
+      reasons.push(`ent-kw:${word}`);
+      if (entHits >= 6) break; // enough to drive score very negative
+    }
   }
 
-  // Logic:
-  // If it matches the topic AND (score > 30 OR high topic match score)
-  // Or if it's a very strong educational match regardless of exact topic
-  const isEducational = score > 20; 
-  
-  let finalDecision: 'show' | 'hide' = 'hide';
-  
-  // High confidence threshold for showing
-  if (matchesTopic && score >= 40) {
-    finalDecision = 'show';
-  } else if (score >= 70) {
-    // Very educational even if not exact topic match (e.g. general dev tips when searching for React)
-    finalDecision = 'show';
+  // ------------------------------------------------------------------
+  // Signal 7: Contextual penalties
+  // ------------------------------------------------------------------
+
+  // "reaction" unless it's clearly educational ("chemical reaction")
+  if (containsPhrase(normTitle, 'reaction') && !containsPhrase(normTitle, 'chemical reaction')) {
+    score += CONTEXTUAL_PENALTY_HEAVY;
+    reasons.push('contextual:reaction');
   }
 
-  return {
+  // Official music/audio/video releases
+  if (containsPhrase(normTitle, 'official video') || containsPhrase(normTitle, 'official audio')) {
+    score += CONTEXTUAL_PENALTY_HEAVY;
+    reasons.push('contextual:official-media');
+  }
+
+  // Reacting/watching patterns
+  if (containsPhrase(normTitle, 'reacting to') || containsPhrase(normTitle, 'watching')) {
+    score += CONTEXTUAL_PENALTY_MEDIUM;
+    reasons.push('contextual:watching');
+  }
+
+  // Day-in-life / lifestyle signals
+  if (
+    containsPhrase(normTitle, 'day in my life') ||
+    containsPhrase(normTitle, 'day in the life') ||
+    containsPhrase(normTitle, 'morning routine') ||
+    containsPhrase(normTitle, 'night routine')
+  ) {
+    score += CONTEXTUAL_PENALTY_HEAVY;
+    reasons.push('contextual:vlog-pattern');
+  }
+
+  // Gaming-specific patterns
+  if (containsPhrase(normTitle, 'lets play') || containsPhrase(normTitle, 'gameplay')) {
+    score += CONTEXTUAL_PENALTY_HEAVY;
+    reasons.push('contextual:gaming');
+  }
+
+  // Bollywood/movie patterns
+  if (
+    containsPhrase(normTitle, 'full movie') ||
+    containsPhrase(normTitle, 'movie download') ||
+    containsPhrase(normTitle, 'trailer')
+  ) {
+    score += CONTEXTUAL_PENALTY_HEAVY;
+    reasons.push('contextual:movie');
+  }
+
+  // If topic IS matched but there are strong entertainment signals, apply extra penalty
+  if (matchesTopic && entHits >= 2) {
+    score += CONTEXTUAL_PENALTY_MEDIUM;
+    reasons.push('contextual:topic-but-ent');
+  }
+
+  // ------------------------------------------------------------------
+  // Decision logic
+  // ------------------------------------------------------------------
+  // Default bias: HIDE unless score is high enough
+  const threshold = strictMode ? STRICT_SHOW_THRESHOLD : STANDARD_SHOW_THRESHOLD;
+
+  debugLogSync('SCORER', {
+    title: title.substring(0, 60),
+    channel: channel.substring(0, 30),
     score,
-    isEducational,
+    threshold,
     matchesTopic,
-    finalDecision
-  };
+    isKnownEduChannel,
+    reasons,
+  });
+
+  return buildResult(score, matchesTopic, strictMode, reasons);
+}
+
+function buildResult(
+  score: number,
+  matchesTopic: boolean,
+  strictMode: boolean,
+  reasons: string[],
+): RelevanceScore {
+  const threshold = strictMode ? STRICT_SHOW_THRESHOLD : STANDARD_SHOW_THRESHOLD;
+
+  let finalDecision: 'show' | 'hide';
+  let reason: string;
+
+  if (score >= threshold) {
+    finalDecision = 'show';
+    reason = `score ${score} >= threshold ${threshold}`;
+  } else {
+    finalDecision = 'hide';
+    reason = `score ${score} < threshold ${threshold} [${reasons.slice(0, 5).join(', ')}]`;
+  }
+
+  return { score, matchesTopic, finalDecision, reason };
 }
