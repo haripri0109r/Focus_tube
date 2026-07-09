@@ -51,6 +51,19 @@ export type PageType =
   | 'watch'
   | 'shorts'
   | 'subscriptions'
+  | 'history'
+  | 'library'
+  | 'playlist'
+  | 'channel'
+  | 'explore'
+  | 'gaming'
+  | 'music'
+  | 'movies'
+  | 'live'
+  | 'fashion'
+  | 'sports'
+  | 'news'
+  | 'trending'
   | 'other';
 
 /**
@@ -74,4 +87,14 @@ export interface FilterResult {
   score: number;
   reason: string;
   metadata: VideoMetadata;
+}
+
+/**
+ * Caches the relevance engine decision for a specific video
+ */
+export interface VideoDecisionCache {
+  videoId: string;
+  score: number;
+  decision: 'show' | 'hide';
+  timestamp: number;
 }
