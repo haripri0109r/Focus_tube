@@ -314,6 +314,13 @@ export function calculateRelevance(
     return buildResult(-50, false, strictMode, [...reasons, 'instant-hide:no-edu-signals']);
   }
 
+  // Off-topic penalty: If it doesn't match the topic and isn't from a trusted edu channel,
+  // heavily penalize it so random tutorials on unrelated subjects don't slip through.
+  if (!matchesTopic && !isKnownEduChannel) {
+    score -= 40;
+    reasons.push('penalty:off-topic');
+  }
+
   // ------------------------------------------------------------------
   // Decision logic
   // ------------------------------------------------------------------

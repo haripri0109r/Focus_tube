@@ -160,6 +160,11 @@ export const ENTERTAINMENT_KEYWORDS: readonly string[] = [
   'hindi movie', 'hindi song', 'hindi comedy',
   'punjabi song', 'punjabi music',
 
+  // Music & Audio specific (highly distractive)
+  'music video', 'lyric video', 'official video', 'official audio',
+  '8d audio', 'bass boosted', 'lofi hip hop', 'lo-fi beats',
+  'live performance', 'concert', 'mtv', 'vevo', 'spotify', 'itunes',
+
   // Popular Entertainment Formats
   'prank gone wrong', 'social experiment', 'challenge gone wrong',
   'unboxing', 'mukbang eating', 'asmr',
