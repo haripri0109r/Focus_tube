@@ -153,13 +153,16 @@ export function isShortsShelf(el: Element): boolean {
   // ytd-rich-section-renderer that contains a reel shelf
   if (
     el.tagName.toLowerCase() === 'ytd-rich-section-renderer' &&
-    el.querySelector('ytd-reel-shelf-renderer')
+    el.querySelector('ytd-reel-shelf-renderer, ytd-reel-item-renderer')
   ) {
     return true;
   }
 
-  // ytd-shelf-renderer labelled "Shorts" in title
+  // ytd-shelf-renderer labelled "Shorts" or containing Shorts items/icons
   if (el.tagName.toLowerCase() === 'ytd-shelf-renderer') {
+    if (el.querySelector('yt-icon[icon="shorts_logo"], .ytd-shorts-logo, ytd-reel-item-renderer')) {
+      return true;
+    }
     const title = el.querySelector('#title, h2')?.textContent?.toLowerCase() ?? '';
     if (title.includes('short')) return true;
   }

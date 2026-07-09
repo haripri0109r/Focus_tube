@@ -197,7 +197,9 @@ function injectGlobalBlockerCss(): void {
     ytd-video-renderer:not([data-focustube-hidden]),
     ytd-grid-video-renderer:not([data-focustube-hidden]),
     ytd-rich-item-renderer:not([data-focustube-hidden]),
-    ytd-compact-video-renderer:not([data-focustube-hidden]) {
+    ytd-compact-video-renderer:not([data-focustube-hidden]),
+    ytd-reel-item-renderer:not([data-focustube-hidden]),
+    yt-lockup-view-model:not([data-focustube-hidden]) {
       opacity: 0 !important;
       pointer-events: none !important;
     }
