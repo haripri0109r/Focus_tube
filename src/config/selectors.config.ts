@@ -27,14 +27,19 @@ export const SelectorConfig = {
   },
 
   subscriptions: {
-    root: 'ytd-rich-grid-renderer',
+    // Subscriptions feed uses a section-list structure, not a rich grid
+    // Root selector covers both the standard section list AND the new Polymer grid
+    root: 'ytd-section-list-renderer #contents, ytd-rich-grid-renderer',
     items: [
-      'ytd-rich-item-renderer',
-      'ytd-rich-section-renderer',
-      'ytd-video-renderer',
+      'ytd-rich-item-renderer',        // New grid-style subscriptions
+      'ytd-rich-section-renderer',     // Section containers (Shorts shelves)
+      'ytd-video-renderer',            // Classic list-style subscriptions
+      'ytd-item-section-renderer',     // Section wrapper in subscriptions feed
+      'yt-lockup-view-model',          // New card format (YouTube A/B tests)
     ],
     shelves: [
       'ytd-rich-section-renderer',
+      'ytd-reel-shelf-renderer',
     ],
   },
 
@@ -56,6 +61,37 @@ export const SelectorConfig = {
     shelves: [
       'ytd-reel-shelf-renderer',
       'ytd-shelf-renderer',
+    ],
+  },
+
+  history: {
+    root: '#contents.ytd-section-list-renderer',
+    items: [
+      'ytd-video-renderer',
+      'ytd-reel-shelf-renderer',
+    ],
+  },
+
+  library: {
+    root: '#contents.ytd-section-list-renderer, ytd-browse[page-subtype="playlist"]',
+    items: [
+      'ytd-video-renderer',
+      'ytd-grid-video-renderer',
+      'ytd-rich-item-renderer',
+    ],
+  },
+
+  playlist: {
+    root: 'ytd-playlist-video-list-renderer #contents',
+    items: [
+      'ytd-playlist-video-renderer',
+    ],
+  },
+
+  notifications: {
+    root: 'ytd-popup-container, ytd-multi-page-menu-renderer',
+    items: [
+      'ytd-notification-renderer',
     ],
   },
 
