@@ -8,9 +8,15 @@ export function applyShortsFilter(topic: string, defaultTopic: string): void {
   if (document.getElementById('focustube-shorts-blocker')) return;
 
   // Hide the Shorts player
-  const shortsEl = document.querySelector(SelectorConfig.shorts.player);
-  if (shortsEl) {
-    (shortsEl as HTMLElement).style.setProperty('display', 'none', 'important');
+  const shortsContainer = document.querySelector('ytd-shorts') as HTMLElement | null;
+  if (shortsContainer) {
+    shortsContainer.style.setProperty('display', 'none', 'important');
+    
+    // Pause any playing shorts videos
+    const videos = shortsContainer.querySelectorAll('video');
+    videos.forEach(v => {
+      if (!v.paused) v.pause();
+    });
   }
 
   const blocker = document.createElement('div');

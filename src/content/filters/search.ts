@@ -110,8 +110,8 @@ function checkSearchFallback(root: Element): void {
       `;
       fallback.innerHTML = `
         <div style="font-size: 32px; margin-bottom: 12px;">🔒</div>
-        <h3 style="color: #fff; margin-bottom: 8px;">No content matches your focus topic</h3>
-        <p style="margin-bottom: 24px;">All results hidden to keep you on track.</p>
+        <h3 style="color: #fff; margin-bottom: 8px;">No educational videos found for your learning topic</h3>
+        <p style="margin-bottom: 24px;">All entertainment results hidden to keep you on track.</p>
         <div style="display: flex; gap: 12px; flex-wrap: wrap; justify-content: center;">
           <button id="ft-search-continue" style="background: #3ea6ff; color: #0f0f0f; border: none; padding: 10px 20px; border-radius: 18px; font-weight: bold; cursor: pointer;">
             Search My Topic
@@ -125,7 +125,8 @@ function checkSearchFallback(root: Element): void {
 
       fallback.querySelector('#ft-search-continue')?.addEventListener('click', () => {
         chrome.storage.local.get(['focustube_prefs'], (data) => {
-          const topic = data.focustube_prefs?.defaultTopic || 'learning';
+          const prefs = data.focustube_prefs as UserPrefs | undefined;
+          const topic = prefs?.defaultTopic || 'learning';
           window.location.href = `/results?search_query=${encodeURIComponent(topic)}`;
         });
       });

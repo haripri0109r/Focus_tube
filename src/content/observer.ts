@@ -17,9 +17,14 @@ import { PageType, UserPrefs } from '../types';
 import { applyHomepageFilter } from './filters/homepage';
 import { applySearchFilter } from './filters/search';
 import { applySidebarFilter } from './filters/sidebar';
-import { applyShortsFilter } from './filters/shorts';
+import { applyShortsFilter, restoreShorts } from './filters/shorts';
+import { applyRouteBlocker, removeRouteBlocker } from './filters/route-blocker';
+import { applyChannelFilter, removeChannelBlocker } from './filters/channel';
+import { applyWatchPlayerFilter, setupWatchPlayerObserver, disconnectPlayerObserver, removePlayerBlocker } from './filters/watch-player';
+import { applyNotificationsFilter } from './filters/notifications';
 
 let currentObserver: MutationObserver | null = null;
+let videoObserver: MutationObserver | null = null;
 let debounceTimer: ReturnType<typeof setTimeout> | null = null;
 let maxWaitTimer: ReturnType<typeof setTimeout> | null = null;
 
@@ -81,10 +86,30 @@ export function setupObserver(
 ): void {
   disconnectObserver();
 
-  // Shorts page: apply blocker and return (no need for a mutation observer)
+  // 1. Route Blocking (Gaming, Music, Trending, etc.)
+  if (applyRouteBlocker(pageType, topic, prefs.defaultTopic)) {
+    return; // Stop setting up filters, page is fully blocked
+  }
+
+  // 2. Channel Page Blocking
+  if (pageType === 'channel') {
+    if (applyChannelFilter(keywords, prefs)) {
+      return; // Stop here if channel is blocked
+    }
+    // If not blocked, we could apply search filter to its videos, but for now we just allow it
+  }
+
+  // 3. Shorts Blocking
   if (pageType === 'shorts' && prefs.filterShorts) {
     applyShortsFilter(topic, prefs.defaultTopic);
     return;
+  }
+
+  // 4. Watch Player Blocking
+  if (pageType === 'watch') {
+    applyWatchPlayerFilter(keywords, topic, prefs);
+    setupWatchPlayerObserver(keywords, topic, prefs);
+    // Continue to setupObserver to filter the sidebar recommendations
   }
 
   // Initial synchronous filter pass (catches cards already in DOM)
@@ -95,13 +120,14 @@ export function setupObserver(
 
   // Observe document.body as permanent fallback — it's always available.
   // If the specific root element is found, switch to it for better performance.
-  startObserver(document.body, pageType, keywords, prefs, rootSelector);
+  startObserver(document.body, pageType, keywords, topic, prefs, rootSelector);
 }
 
 function startObserver(
   initialRoot: Element,
   pageType: PageType,
   keywords: string[],
+  topic: string,
   prefs: UserPrefs,
   preferredSelector: string,
 ): void {
@@ -134,6 +160,23 @@ function startObserver(
       currentObserver.observe(observedRoot, { childList: true, subtree: true });
     }
   }
+
+  // Global Video Observer for Miniplayer / Autoplay background changes
+  if (!videoObserver) {
+    videoObserver = new MutationObserver(() => {
+      // If the video src changes, it means a new video loaded (e.g., via autoplay in miniplayer)
+      // We should preemptively pause and re-evaluate if it's the main movie_player
+      debouncedWithMaxWait(() => {
+        applyWatchPlayerFilter(keywords, topic, prefs);
+      });
+    });
+    
+    // The video element might not exist immediately on load, we can observe the player container
+    const player = document.querySelector('#movie_player video') || document.querySelector('video');
+    if (player) {
+      videoObserver.observe(player, { attributeFilter: ['src'] });
+    }
+  }
 }
 
 // ---------------------------------------------------------------------------
@@ -145,23 +188,30 @@ function processFilters(pageType: PageType, keywords: string[], prefs: UserPrefs
     if (prefs.filterHome) {
       applyHomepageFilter(keywords, onHideCallback, onShowCallback, prefs);
     }
-  } else if (pageType === 'search') {
+  } else if (pageType === 'search' || pageType === 'history' || pageType === 'library' || pageType === 'playlist' || pageType === 'explore') {
     if (prefs.filterSearch) {
+      // Reuse the search filter for these list-style pages, it handles the same DOM structure
       applySearchFilter(keywords, onHideCallback, onShowCallback, prefs.filterShorts, prefs);
     }
   } else if (pageType === 'watch') {
-    // ✅ FIX: was incorrectly calling applyHomepageFilter here
     if (prefs.filterSidebar) {
       applySidebarFilter(keywords, onHideCallback, onShowCallback, prefs);
     }
   }
+
+  // Always apply notifications filter globally
+  applyNotificationsFilter(keywords, onHideCallback, onShowCallback, prefs);
 }
 
 function getRootSelector(pageType: PageType): string {
   switch (pageType) {
-    case 'home':
-    case 'subscriptions': return 'ytd-rich-grid-renderer';
+    case 'home':         return 'ytd-rich-grid-renderer';
+    case 'subscriptions': return 'ytd-section-list-renderer #contents, ytd-rich-grid-renderer';
     case 'search':        return 'ytd-section-list-renderer #contents';
+    case 'history':       return '#contents.ytd-section-list-renderer';
+    case 'library':       return '#contents.ytd-section-list-renderer, ytd-browse[page-subtype="playlist"]';
+    case 'playlist':      return 'ytd-playlist-video-list-renderer #contents';
+    case 'explore':       return 'ytd-browse[page-subtype="trending"] #contents';
     case 'watch':         return '#secondary';
     default:              return '';
   }
@@ -174,5 +224,20 @@ function getRootSelector(pageType: PageType): string {
 export function disconnectObserver(): void {
   currentObserver?.disconnect();
   currentObserver = null;
+  videoObserver?.disconnect();
+  videoObserver = null;
   clearAllTimers();
+  
+  disconnectPlayerObserver();
+}
+
+export function cancelPendingTasks(): void {
+  // If we are currently evaluating a video in the background, this will abort it
+  disconnectPlayerObserver();
+}
+
+export function restoreAllGlobalBlockers(): void {
+  removeRouteBlocker();
+  removeChannelBlocker();
+  removePlayerBlocker();
 }

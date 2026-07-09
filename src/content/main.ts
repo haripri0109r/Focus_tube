@@ -1,9 +1,9 @@
 import { PageType, SessionState, UserPrefs } from '../types';
 import { CAREER_PATH_PRESETS } from '../data/career-paths';
 import { setupSpaNavigator, getPageType } from './spa-navigator';
-import { setupObserver, disconnectObserver, setStatsCallbacks } from './observer';
 import { restoreAllHiddenElements, clearAllProcessedFlags } from './restore';
 import { restoreShorts } from './filters/shorts';
+import { setupObserver, disconnectObserver, setStatsCallbacks, restoreAllGlobalBlockers, cancelPendingTasks } from './observer';
 import { mountOverlay, unmountOverlay } from './overlay';
 
 let currentTabId: number | null = null;
@@ -16,6 +16,8 @@ let localShownCount = 0;
 let hidesSinceLastFlush = 0;
 
 async function init() {
+  document.documentElement.dataset.extensionId = chrome.runtime.id;
+
   const result = await chrome.runtime.sendMessage({ type: 'GET_CONTEXT' });
   if (!result || !result.tabId) return;
   currentTabId = result.tabId;
@@ -89,7 +91,16 @@ async function init() {
     },
   );
 
-  setupSpaNavigator(onNavigation);
+  setupSpaNavigator(
+    () => {
+      // Immediate cancellation and preemptive actions on navigation start
+      if (isFilterActive()) {
+        cancelPendingTasks();
+      }
+    },
+    onNavigation
+  );
+  
   setupFlushListeners();
 
   // Kickstart on initial load
@@ -136,6 +147,7 @@ async function onFilterStateChange(): Promise<void> {
   if (active) {
     unmountOverlay();
     removePreloadCss();
+    injectGlobalBlockerCss();
 
     if (currentPrefs) {
       const topic =
@@ -148,6 +160,8 @@ async function onFilterStateChange(): Promise<void> {
     disconnectObserver();
     restoreAllHiddenElements();
     restoreShorts();
+    restoreAllGlobalBlockers();
+    removeGlobalBlockerCss();
 
     if (pageType === 'home' && !currentPrefs?.alwaysOn && currentTabId) {
       mountOverlay(currentTabId);
@@ -166,6 +180,24 @@ function onNavigation(pageType: PageType): void {
 
 function removePreloadCss(): void {
   const el = document.getElementById('focustube-preload');
+  if (el) el.remove();
+}
+
+function injectGlobalBlockerCss(): void {
+  if (document.getElementById('focustube-global-css')) return;
+  const style = document.createElement('style');
+  style.id = 'focustube-global-css';
+  style.textContent = `
+    /* Hide end-screen video recommendations */
+    .ytp-endscreen-content { display: none !important; }
+    /* Hide the miniplayer if it tries to pop up */
+    ytd-miniplayer { display: none !important; }
+  `;
+  document.documentElement.appendChild(style);
+}
+
+function removeGlobalBlockerCss(): void {
+  const el = document.getElementById('focustube-global-css');
   if (el) el.remove();
 }
 
