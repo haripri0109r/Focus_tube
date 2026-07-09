@@ -1,9 +1,12 @@
 /**
  * Homepage and Subscriptions Feed Filter
  *
- * Processes ytd-rich-item-renderer and related card types in the home grid.
- * Also detects and hides Shorts shelves (ytd-rich-section-renderer containing
- * ytd-reel-shelf-renderer) when filterShorts is enabled.
+ * Handles two distinct DOM layouts:
+ * - Home: ytd-rich-grid-renderer > ytd-rich-item-renderer
+ * - Subscriptions: ytd-section-list-renderer > ytd-item-section-renderer > ytd-video-renderer
+ *   (or new grid layout: ytd-rich-grid-renderer > ytd-rich-item-renderer on some accounts)
+ *
+ * Also detects and hides Shorts shelves when filterShorts is enabled.
  */
 
 import { SelectorConfig } from '../../config/selectors.config';
@@ -24,48 +27,97 @@ export function applyHomepageFilter(
   onShow: () => void,
   prefs?: UserPrefs,
 ): void {
-  const root = document.querySelector(SelectorConfig.home.root);
-  if (!root) return;
-
   const strictMode = prefs?.strictMode ?? false;
   const filterShorts = prefs?.filterShorts ?? true;
 
-  const selectors = SelectorConfig.home.items.join(',');
-  const elements = root.querySelectorAll(selectors);
+  // Collect all possible root elements — home and subscriptions have different DOMs
+  const roots = Array.from(
+    new Set([
+      // Home page grid
+      ...Array.from(document.querySelectorAll('ytd-rich-grid-renderer')),
+      // Subscriptions section list (classic layout)
+      ...Array.from(document.querySelectorAll('ytd-section-list-renderer #contents')),
+    ])
+  ).filter(Boolean);
 
-  elements.forEach((el) => {
-    // Skip if already processed (WeakSet check)
-    if (processedElements.has(el)) return;
+  if (roots.length === 0) return;
 
-    // --- Shorts shelf detection — hide whole section immediately ---
-    if (filterShorts && (isShortsShelf(el) || isShortsItem(el))) {
+  const selectors = [
+    'ytd-rich-item-renderer',
+    'ytd-rich-section-renderer',
+    'ytd-video-renderer',
+    'ytd-item-section-renderer',
+    'yt-lockup-view-model',
+  ].join(',');
+
+  let foundAny = false;
+
+  for (const root of roots) {
+    const elements = root.querySelectorAll(selectors);
+
+    elements.forEach((el) => {
+      // Skip if already processed (WeakSet check)
+      if (processedElements.has(el)) return;
+
+      // --- Shorts shelf detection — hide whole section immediately ---
+      if (filterShorts && (isShortsShelf(el) || isShortsItem(el))) {
+        processedElements.add(el);
+        hideElement(el as HTMLElement, onHide);
+        return;
+      }
+
+      // For ytd-item-section-renderer (subscriptions wrapper), drill into inner videos
+      if (el.tagName.toLowerCase() === 'ytd-item-section-renderer') {
+        processedElements.add(el);
+        const innerVideos = el.querySelectorAll('ytd-video-renderer, yt-lockup-view-model');
+        innerVideos.forEach((innerEl) => {
+          if (processedElements.has(innerEl)) return;
+          const meta = extractMetadata(innerEl);
+          if (meta.isSkeleton) return;
+          processedElements.add(innerEl);
+          if (!meta.title && !meta.channel && !meta.ariaLabel) return;
+          foundAny = true;
+          const hide = shouldHide(meta.title, meta.channel, meta.ariaLabel, keywords, strictMode);
+          if (hide) {
+            hideElement(innerEl as HTMLElement, onHide);
+            // Also visually collapse the section wrapper
+            (el as HTMLElement).style.setProperty('display', 'none', 'important');
+            el.setAttribute('data-focustube-hidden', 'true');
+          } else {
+            showElement(innerEl as HTMLElement, onShow);
+          }
+        });
+        return;
+      }
+
+      const meta = extractMetadata(el);
+
+      // Don't process loading skeletons — they'll be re-processed when content arrives
+      if (meta.isSkeleton) return;
+
+      // Mark as processed NOW (before async/other operations)
       processedElements.add(el);
-      hideElement(el as HTMLElement, onHide);
-      return;
-    }
 
-    const meta = extractMetadata(el);
+      // If no text at all (non-video element like ads, banners), skip
+      if (!meta.title && !meta.channel && !meta.ariaLabel) return;
 
-    // Don't process loading skeletons — they'll be re-processed when content arrives
-    if (meta.isSkeleton) return;
+      foundAny = true;
+      const hide = shouldHide(meta.title, meta.channel, meta.ariaLabel, keywords, strictMode);
 
-    // Mark as processed NOW (before async/other operations)
-    processedElements.add(el);
+      if (hide) {
+        hideElement(el as HTMLElement, onHide);
+      } else {
+        showElement(el as HTMLElement, onShow);
+      }
+    });
+  }
 
-    // If no text at all (non-video element like ads, banners), skip
-    if (!meta.title && !meta.channel && !meta.ariaLabel) return;
-
-    const hide = shouldHide(meta.title, meta.channel, meta.ariaLabel, keywords, strictMode);
-
-    if (hide) {
-      hideElement(el as HTMLElement, onHide);
-    } else {
-      showElement(el as HTMLElement, onShow);
-    }
-  });
-
-  checkHomepageFallback(root);
+  // Only check fallback if we actually found video elements to process
+  if (foundAny) {
+    checkHomepageFallback(roots[0]);
+  }
 }
+
 
 function checkHomepageFallback(root: Element): void {
   const visibleItems = root.querySelectorAll('[data-focustube-hidden="false"]');
