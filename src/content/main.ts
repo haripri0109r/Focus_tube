@@ -192,6 +192,15 @@ function injectGlobalBlockerCss(): void {
     .ytp-endscreen-content { display: none !important; }
     /* Hide the miniplayer if it tries to pop up */
     ytd-miniplayer { display: none !important; }
+    
+    /* Global Anti-Flicker: Hide any video/short that hasn't been processed by FocusTube yet */
+    ytd-video-renderer:not([data-focustube-hidden]),
+    ytd-grid-video-renderer:not([data-focustube-hidden]),
+    ytd-rich-item-renderer:not([data-focustube-hidden]),
+    ytd-compact-video-renderer:not([data-focustube-hidden]) {
+      opacity: 0 !important;
+      pointer-events: none !important;
+    }
   `;
   document.documentElement.appendChild(style);
 }

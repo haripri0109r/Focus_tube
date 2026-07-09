@@ -41,8 +41,8 @@ export function setStatsCallbacks(onHide: () => void, onShow: () => void): void 
 // Debounce with maxWait
 // ---------------------------------------------------------------------------
 
-const DEBOUNCE_DELAY = 300;   // ms — wait for DOM to settle after mutations
-const DEBOUNCE_MAX_WAIT = 2000; // ms — maximum wait before forcing a filter pass
+const DEBOUNCE_DELAY = 50;   // ms — wait for DOM to settle after mutations (reduced from 300ms for speed)
+const DEBOUNCE_MAX_WAIT = 200; // ms — maximum wait before forcing a filter pass (reduced from 2000ms)
 
 /**
  * Schedules `fn` to run after DEBOUNCE_DELAY ms of inactivity,
