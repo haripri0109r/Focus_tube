@@ -39,7 +39,10 @@ export type DebugCategory =
   | 'OBSERVER'
   | 'SPA'
   | 'KEYWORD'
-  | 'RESTORE';
+  | 'RESTORE'
+  | 'WATCH_PLAYER'
+  | 'ROUTE_BLOCKER'
+  | 'CHANNEL_BLOCKER';
 
 export interface DebugEntry {
   category: DebugCategory;
