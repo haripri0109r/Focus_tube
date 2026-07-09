@@ -25,7 +25,7 @@ import { debugLogSync } from '../debug';
 // ---------------------------------------------------------------------------
 
 /** Standard mode: show if score >= this value */
-const STANDARD_SHOW_THRESHOLD = 60;
+const STANDARD_SHOW_THRESHOLD = 50;
 
 /** Strict mode: only show if score >= this value */
 const STRICT_SHOW_THRESHOLD = 90;
@@ -39,14 +39,17 @@ const TOPIC_PARTIAL_SCORE = 25;
 /** Score added per educational keyword hit */
 const EDUCATIONAL_KW_SCORE = 10;
 
-/** Score deducted per entertainment keyword hit */
-const ENTERTAINMENT_KW_SCORE = -25;
+/** Score deducted per entertainment keyword hit — raised for stronger blocking */
+const ENTERTAINMENT_KW_SCORE = -35;
 
 /** Score added for a known educational channel */
 const EDUCATIONAL_CHANNEL_SCORE = 55;
 
-/** Score deducted for a known entertainment channel pattern */
-const ENTERTAINMENT_CHANNEL_SCORE = -70;
+/**
+ * Score deducted for a known entertainment channel pattern.
+ * Set very negative so that even a topic match cannot overcome it.
+ */
+const ENTERTAINMENT_CHANNEL_SCORE = -200;
 
 /** Score deducted for clear entertainment contextual signals */
 const CONTEXTUAL_PENALTY_HEAVY = -60;
@@ -201,14 +204,21 @@ export function calculateRelevance(
   }
 
   // ------------------------------------------------------------------
-  // Signal 4: Entertainment channel pattern (strong negative)
+  // Signal 4: Entertainment channel pattern (ABSOLUTE OVERRIDE — instant hide)
   // ------------------------------------------------------------------
+  let isEntertainmentChannel = false;
   for (const pattern of ENTERTAINMENT_CHANNEL_PATTERNS) {
     if (containsPhrase(normChannel, pattern)) {
-      score += ENTERTAINMENT_CHANNEL_SCORE;
+      score += ENTERTAINMENT_CHANNEL_SCORE; // -200, impossible to overcome
       reasons.push(`ent-channel:${pattern}`);
+      isEntertainmentChannel = true;
       break;
     }
+  }
+
+  // Short-circuit: known entertainment channel = always hide
+  if (isEntertainmentChannel) {
+    return buildResult(score, matchesTopic, strictMode, [...reasons, 'instant-hide:ent-channel']);
   }
 
   // ------------------------------------------------------------------
@@ -233,8 +243,14 @@ export function calculateRelevance(
       score += ENTERTAINMENT_KW_SCORE;
       entHits++;
       reasons.push(`ent-kw:${word}`);
-      if (entHits >= 6) break; // enough to drive score very negative
+      if (entHits >= 8) break; // cap at -280 from this signal
     }
+  }
+
+  // Override: entertainment keywords detected, no topic match = always hide
+  // This prevents entertainment content with no learning relevance from sneaking through
+  if (entHits >= 1 && !matchesTopic && !isKnownEduChannel) {
+    return buildResult(-100, false, strictMode, [...reasons, 'instant-hide:ent-no-topic']);
   }
 
   // ------------------------------------------------------------------
@@ -287,9 +303,15 @@ export function calculateRelevance(
   }
 
   // If topic IS matched but there are strong entertainment signals, apply extra penalty
-  if (matchesTopic && entHits >= 2) {
+  // Raised from 2 to 1 hit threshold — any entertainment + topic = suspicious
+  if (matchesTopic && entHits >= 1) {
     score += CONTEXTUAL_PENALTY_MEDIUM;
     reasons.push('contextual:topic-but-ent');
+  }
+
+  // If no topic match at all AND no educational signals, force hide
+  if (!matchesTopic && !isKnownEduChannel && eduHits === 0) {
+    return buildResult(-50, false, strictMode, [...reasons, 'instant-hide:no-edu-signals']);
   }
 
   // ------------------------------------------------------------------
