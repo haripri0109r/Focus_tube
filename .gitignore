@@ -6,3 +6,22 @@ coverage/
 *.log
 .env*
 !.env.example
+
+# Playwright E2E test outputs
+e2e/
+playwright-report/
+playwright.config.ts
+test-results/
+report.json
+
+# Temporary debug / test scripts
+check-cs.mjs
+check-worker.mjs
+test-ext-dom.mjs
+test-id.mjs
+test-id.ts
+*.test.mjs
+*.debug.mjs
+
+# Temp puppeteer scripts
+/temp_puppeteer/
