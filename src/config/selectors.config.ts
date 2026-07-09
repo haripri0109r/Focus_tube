@@ -135,6 +135,8 @@ export const SelectorConfig = {
       'a#video-title-link',                                // Link variant
       'yt-formatted-string#video-title',                   // Formatted string variant
       'span#video-title',                                  // Span variant (compact cards)
+      '#channel-title',                                    // Channel search results
+      '#title',                                            // Playlist search results
       '.yt-lockup-metadata-view-model-wiz__title',         // New lockup card
       'h3 a',                                              // Generic heading link
       'a[title]',                                          // Anchor with title attr
