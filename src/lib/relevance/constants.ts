@@ -149,6 +149,30 @@ export const ENTERTAINMENT_KEYWORDS: readonly string[] = [
   // Anime / Fan Content
   'anime edit', 'fan edit', 'amv', 'tribute', 'fan made',
   'anime reaction', 'manga',
+
+  // Indian Regional Entertainment
+  'vijay tv', 'sun tv', 'star vijay', 'zee tamil', 'colors tamil',
+  'tamil serial', 'tamil movie', 'tamil song', 'tamil comedy',
+  'kollywood', 'thalapathy', 'rajinikanth', 'vijay', 'ajith',
+  'telugu movie', 'telugu song', 'telugu comedy',
+  'malayalam movie', 'malayalam song',
+  'kannada movie', 'kannada song',
+  'hindi movie', 'hindi song', 'hindi comedy',
+  'punjabi song', 'punjabi music',
+
+  // Popular Entertainment Formats
+  'prank gone wrong', 'social experiment', 'challenge gone wrong',
+  'unboxing', 'mukbang eating', 'asmr',
+  'roast video', 'diss track',
+  'q&a', 'q and a', 'ama',
+  'subscribers', 'fans', '1 million', '10 million', '100 million',
+  'collab', 'collaboration video',
+
+  // Celebs & Influencers
+  'mrbeast', 'pewdiepie', 'markiplier', 'jacksepticeye',
+  'dude perfect', 'sidemen', 'vj siddhu', 'ashwin kumar',
+  'beyhadh', 'kumkum bhagya', 'kundali bhagya',
+  'bigg boss', 'koffee with karan', 'jhalak dikhla ja',
 ];
 
 // ---------------------------------------------------------------------------
@@ -172,14 +196,28 @@ export const ENTERTAINMENT_CHANNEL_PATTERNS: readonly string[] = [
 
   // Meme / Comedy
   'bb ki vines', 'carryminati', 'elvish yadav', 'thugesh',
-  'fukra insaan', 'bhuvan bam',
+  'fukra insaan', 'bhuvan bam', 'ashish chanchlani', 'round2hell',
 
   // Cricket / Sports
   'bcci', 'star sports', 'sony sports', 'espn cricket',
 
   // Vlog / Lifestyle
   'be younic', 'technical guruji', 'mumbiker nikhil',
-  'travel with wife', 'abhi and niyu',
+  'travel with wife', 'abhi and niyu', 'mumbai meri jaan',
+
+  // Tamil Regional Entertainment
+  'vijay tv', 'sun tv', 'star vijay', 'zee tamil', 'colors tamil',
+  'rowdy baby', 'super singer', 'cook with comali', 'neeya naana',
+  'vj siddhu', 'vj ashwin', 'vj bala',
+
+  // Telugu / Hindi Entertainment Channels
+  'aha video', 'zee telugu', 'etv telugu',
+  'star plus', 'zee tv', 'colors', 'sony entertainment',
+  'eros now', 'shemaroo entertainment',
+
+  // Viral / Trending Creators
+  'mrbeast', 'mrbeast gaming', 'dream', 'technoblade',
+  't-series', 'tseries', 'set india', 'zee music company',
 ];
 
 // ---------------------------------------------------------------------------
