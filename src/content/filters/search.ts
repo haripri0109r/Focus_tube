@@ -12,6 +12,7 @@ import { shouldHide } from '../../lib/should-hide';
 import {
   extractMetadata,
   processedElements,
+  markAsProcessed,
   hideElement,
   showElement,
   isShortsShelf,
@@ -36,7 +37,7 @@ export function applySearchFilter(
     shelves.forEach((el) => {
       if (processedElements.has(el)) return;
       if (isShortsShelf(el)) {
-        processedElements.add(el);
+        markAsProcessed(el);
         hideElement(el as HTMLElement, onHide);
       }
     });
@@ -51,7 +52,7 @@ export function applySearchFilter(
 
     // Skip elements already hidden by a parent shelf
     if (el.closest('[data-focustube-hidden="true"]')) {
-      processedElements.add(el);
+      markAsProcessed(el);
       return;
     }
 
@@ -60,7 +61,7 @@ export function applySearchFilter(
       el.tagName.toLowerCase() === 'ytd-shelf-renderer' ||
       el.tagName.toLowerCase() === 'ytd-reel-shelf-renderer'
     ) {
-      processedElements.add(el);
+      markAsProcessed(el);
       hideElement(el as HTMLElement, onHide);
       return;
     }
@@ -70,10 +71,11 @@ export function applySearchFilter(
     // Skip skeletons — they'll be reprocessed when content loads
     if (meta.isSkeleton) return;
 
-    processedElements.add(el);
-
     // Non-video elements (channels, playlists) — apply same filter
     if (!meta.title && !meta.channel && !meta.ariaLabel) return;
+
+    processedElements.add(el); // wait, let's keep processedElements WeakSet check, but also markAsProcessed here!
+    markAsProcessed(el);
 
     const hide = shouldHide(meta.title, meta.channel, meta.ariaLabel, keywords, strictMode);
 

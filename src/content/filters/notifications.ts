@@ -4,6 +4,7 @@ import { shouldHide } from '../../lib/should-hide';
 import {
   extractMetadata,
   processedElements,
+  markAsProcessed,
   hideElement,
   showElement,
 } from './utils';
@@ -30,9 +31,9 @@ export function applyNotificationsFilter(
       const meta = extractMetadata(el);
       if (meta.isSkeleton) return;
 
-      processedElements.add(el);
-
       if (!meta.title && !meta.channel && !meta.ariaLabel) return;
+
+      markAsProcessed(el);
 
       const hide = shouldHide(meta.title, meta.channel, meta.ariaLabel, keywords, strictMode);
 

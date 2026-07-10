@@ -11,6 +11,7 @@ import { shouldHide } from '../../lib/should-hide';
 import {
   extractMetadata,
   processedElements,
+  markAsProcessed,
   hideElement,
   showElement,
   isShortsShelf,
@@ -37,7 +38,7 @@ export function applySidebarFilter(
 
     // Hide Shorts shelves in the sidebar
     if (filterShorts && isShortsShelf(el)) {
-      processedElements.add(el);
+      markAsProcessed(el);
       hideElement(el as HTMLElement, onHide);
       return;
     }
@@ -45,9 +46,9 @@ export function applySidebarFilter(
     const meta = extractMetadata(el);
     if (meta.isSkeleton) return;
 
-    processedElements.add(el);
-
     if (!meta.title && !meta.channel && !meta.ariaLabel) return;
+
+    markAsProcessed(el);
 
     const hide = shouldHide(meta.title, meta.channel, meta.ariaLabel, keywords, strictMode);
 

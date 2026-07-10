@@ -15,6 +15,7 @@ import { shouldHide } from '../../lib/should-hide';
 import {
   extractMetadata,
   processedElements,
+  markAsProcessed,
   hideElement,
   showElement,
   isShortsShelf,
@@ -61,21 +62,21 @@ export function applyHomepageFilter(
 
       // --- Shorts shelf detection — hide whole section immediately ---
       if (filterShorts && (isShortsShelf(el) || isShortsItem(el))) {
-        processedElements.add(el);
+        markAsProcessed(el);
         hideElement(el as HTMLElement, onHide);
         return;
       }
 
       // For ytd-item-section-renderer (subscriptions wrapper), drill into inner videos
       if (el.tagName.toLowerCase() === 'ytd-item-section-renderer') {
-        processedElements.add(el);
+        markAsProcessed(el);
         const innerVideos = el.querySelectorAll('ytd-video-renderer, yt-lockup-view-model');
         innerVideos.forEach((innerEl) => {
           if (processedElements.has(innerEl)) return;
           const meta = extractMetadata(innerEl);
           if (meta.isSkeleton) return;
-          processedElements.add(innerEl);
           if (!meta.title && !meta.channel && !meta.ariaLabel) return;
+          markAsProcessed(innerEl);
           foundAny = true;
           const hide = shouldHide(meta.title, meta.channel, meta.ariaLabel, keywords, strictMode);
           if (hide) {
@@ -95,11 +96,11 @@ export function applyHomepageFilter(
       // Don't process loading skeletons — they'll be re-processed when content arrives
       if (meta.isSkeleton) return;
 
-      // Mark as processed NOW (before async/other operations)
-      processedElements.add(el);
-
       // If no text at all (non-video element like ads, banners), skip
       if (!meta.title && !meta.channel && !meta.ariaLabel) return;
+
+      // Mark as processed NOW
+      markAsProcessed(el);
 
       foundAny = true;
       const hide = shouldHide(meta.title, meta.channel, meta.ariaLabel, keywords, strictMode);
