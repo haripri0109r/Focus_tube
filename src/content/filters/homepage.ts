@@ -154,10 +154,10 @@ function checkHomepageFallback(root: Element): void {
       root.appendChild(fallback);
 
       fallback.querySelector('#ft-fallback-search')?.addEventListener('click', () => {
-        const searchInput = document.querySelector('input#search') as HTMLInputElement | null;
+        const searchInput = document.querySelector('input[name="search_query"]') as HTMLInputElement | null;
         if (searchInput) {
           searchInput.focus();
-        } else {
+         } else {
           window.scrollTo({ top: 0, behavior: 'smooth' });
         }
       });
