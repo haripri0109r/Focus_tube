@@ -20,6 +20,12 @@ import { debugLogSync } from '../../lib/debug';
 
 export const processedElements = new WeakSet<Element>();
 
+/** Marks an element as processed by adding it to the WeakSet and setting the data-ft-processed DOM attribute. */
+export function markAsProcessed(el: Element): void {
+  processedElements.add(el);
+  el.setAttribute('data-ft-processed', 'true');
+}
+
 /** Reset the processed tracking set (call on SPA navigation / disconnect). */
 export function resetProcessedElements(): void {
   // WeakSet has no .clear(), so we replace the module's internal tracking
