@@ -4,12 +4,17 @@ import { SessionRecord } from '../types';
 export async function mountOverlay(tabId: number) {
   if (document.getElementById('focustube-overlay')) return;
   
+  // Force scroll to top first while the page is still scrollable
+  window.scrollTo(0, 0);
+
   // Lock scroll on html and body to keep overlay centered and prevent scrolling
   document.documentElement.style.setProperty('overflow', 'hidden', 'important');
   document.body.style.setProperty('overflow', 'hidden', 'important');
   
-  // Force scroll to top so the overlay content is centered in the visible viewport
-  window.scrollTo(0, 0);
+  // Double-ensure scroll position is at top after rendering pipeline updates
+  setTimeout(() => {
+    window.scrollTo(0, 0);
+  }, 50);
 
   const container = document.createElement('div');
   container.id = 'focustube-overlay';

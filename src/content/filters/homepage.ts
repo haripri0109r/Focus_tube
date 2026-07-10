@@ -127,6 +127,7 @@ function checkHomepageFallback(root: Element): void {
   if (visibleItems.length === 0 && root.querySelectorAll('[data-focustube-hidden]').length > 0) {
     if (!existingFallback) {
       window.scrollTo(0, 0);
+      setTimeout(() => window.scrollTo(0, 0), 100);
       const fallback = document.createElement('div');
       fallback.id = 'ft-homepage-fallback';
       fallback.style.cssText = `
