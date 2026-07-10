@@ -4,6 +4,13 @@ import { SessionRecord } from '../types';
 export async function mountOverlay(tabId: number) {
   if (document.getElementById('focustube-overlay')) return;
   
+  // Lock scroll on html and body to keep overlay centered and prevent scrolling
+  document.documentElement.style.setProperty('overflow', 'hidden', 'important');
+  document.body.style.setProperty('overflow', 'hidden', 'important');
+  
+  // Force scroll to top so the overlay content is centered in the visible viewport
+  window.scrollTo(0, 0);
+
   const container = document.createElement('div');
   container.id = 'focustube-overlay';
   container.style.cssText = `
@@ -104,4 +111,6 @@ async function hydrateOverlay(container: HTMLElement, tabId: number) {
 export function unmountOverlay() {
   const el = document.getElementById('focustube-overlay');
   if (el) el.remove();
+  document.documentElement.style.removeProperty('overflow');
+  document.body.style.removeProperty('overflow');
 }
