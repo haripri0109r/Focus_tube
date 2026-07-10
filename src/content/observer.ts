@@ -115,51 +115,17 @@ export function setupObserver(
   // Initial synchronous filter pass (catches cards already in DOM)
   processFilters(pageType, keywords, prefs);
 
-  // Determine which element to observe
-  const rootSelector = getRootSelector(pageType);
-
-  // Observe document.body as permanent fallback — it's always available.
-  // If the specific root element is found, switch to it for better performance.
-  startObserver(document.body, pageType, keywords, topic, prefs, rootSelector);
-}
-
-function startObserver(
-  initialRoot: Element,
-  pageType: PageType,
-  keywords: string[],
-  topic: string,
-  prefs: UserPrefs,
-  preferredSelector: string,
-): void {
-  let observedRoot = initialRoot;
+  // Observe ytd-page-manager (if present) or document.body as stable containers.
+  // This guarantees we never lose mutations due to element recreation / SPA detachment.
+  const stableRoot = document.querySelector('ytd-page-manager') || document.body;
 
   currentObserver = new MutationObserver(() => {
     debouncedWithMaxWait(() => {
-      // Opportunistically upgrade from body to the specific root
-      if (observedRoot === document.body && preferredSelector) {
-        const specificRoot = document.querySelector(preferredSelector);
-        if (specificRoot) {
-          currentObserver?.disconnect();
-          observedRoot = specificRoot;
-          currentObserver?.observe(observedRoot, { childList: true, subtree: true });
-        }
-      }
-
       processFilters(pageType, keywords, prefs);
     });
   });
 
-  currentObserver.observe(observedRoot, { childList: true, subtree: true });
-
-  // Try to immediately upgrade to the specific root if it already exists
-  if (preferredSelector && initialRoot === document.body) {
-    const specificRoot = document.querySelector(preferredSelector);
-    if (specificRoot) {
-      currentObserver.disconnect();
-      observedRoot = specificRoot;
-      currentObserver.observe(observedRoot, { childList: true, subtree: true });
-    }
-  }
+  currentObserver.observe(stableRoot, { childList: true, subtree: true });
 
   // Global Video Observer for Miniplayer / Autoplay background changes
   if (!videoObserver) {
@@ -201,20 +167,6 @@ function processFilters(pageType: PageType, keywords: string[], prefs: UserPrefs
 
   // Always apply notifications filter globally
   applyNotificationsFilter(keywords, onHideCallback, onShowCallback, prefs);
-}
-
-function getRootSelector(pageType: PageType): string {
-  switch (pageType) {
-    case 'home':         return 'ytd-rich-grid-renderer';
-    case 'subscriptions': return 'ytd-section-list-renderer #contents, ytd-rich-grid-renderer';
-    case 'search':        return 'ytd-section-list-renderer #contents';
-    case 'history':       return '#contents.ytd-section-list-renderer';
-    case 'library':       return '#contents.ytd-section-list-renderer, ytd-browse[page-subtype="playlist"]';
-    case 'playlist':      return 'ytd-playlist-video-list-renderer #contents';
-    case 'explore':       return 'ytd-browse[page-subtype="trending"] #contents';
-    case 'watch':         return '#secondary';
-    default:              return '';
-  }
 }
 
 // ---------------------------------------------------------------------------
