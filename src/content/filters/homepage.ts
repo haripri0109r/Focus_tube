@@ -262,10 +262,14 @@ function checkHomepageFallback(root: Element, topic: string): void {
       `;
       
       const contentsContainer = root.querySelector('#contents') || root;
-      // Append right after the learning header if it exists
+      // Append right after the learning header if it exists in its parent node
       const header = document.getElementById('ft-learning-header');
-      if (header && header.nextSibling) {
-        contentsContainer.insertBefore(fallback, header.nextSibling);
+      if (header && header.parentElement) {
+        if (header.nextSibling) {
+          header.parentElement.insertBefore(fallback, header.nextSibling);
+        } else {
+          header.parentElement.appendChild(fallback);
+        }
       } else {
         contentsContainer.appendChild(fallback);
       }
