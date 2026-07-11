@@ -5,6 +5,7 @@ import { restoreAllHiddenElements, clearAllProcessedFlags } from './restore';
 import { restoreShorts } from './filters/shorts';
 import { setupObserver, disconnectObserver, setStatsCallbacks, restoreAllGlobalBlockers, cancelPendingTasks } from './observer';
 import { mountOverlay, unmountOverlay } from './overlay';
+import { removeLearningHeader } from './filters/homepage';
 
 let currentTabId: number | null = null;
 let currentPrefs: UserPrefs | null = null;
@@ -162,6 +163,7 @@ async function onFilterStateChange(): Promise<void> {
     restoreShorts();
     restoreAllGlobalBlockers();
     removeGlobalBlockerCss();
+    removeLearningHeader();
 
     if (pageType === 'home' && !currentPrefs?.alwaysOn && currentTabId) {
       mountOverlay(currentTabId);

@@ -113,7 +113,7 @@ export function setupObserver(
   }
 
   // Initial synchronous filter pass (catches cards already in DOM)
-  processFilters(pageType, keywords, prefs);
+  processFilters(pageType, keywords, topic, prefs);
 
   // Observe ytd-page-manager (if present) or document.body as stable containers.
   // This guarantees we never lose mutations due to element recreation / SPA detachment.
@@ -121,7 +121,7 @@ export function setupObserver(
 
   currentObserver = new MutationObserver(() => {
     debouncedWithMaxWait(() => {
-      processFilters(pageType, keywords, prefs);
+      processFilters(pageType, keywords, topic, prefs);
     });
   });
 
@@ -149,11 +149,11 @@ export function setupObserver(
 // Filter routing — THIS IS WHERE BUG 1 WAS
 // ---------------------------------------------------------------------------
 
-function processFilters(pageType: PageType, keywords: string[], prefs: UserPrefs): void {
+function processFilters(pageType: PageType, keywords: string[], topic: string, prefs: UserPrefs): void {
   console.log('[FT:OBSERVER]', { pageType, keywordsCount: keywords.length, keywords, filterHome: prefs.filterHome });
   if (pageType === 'home' || pageType === 'subscriptions') {
     if (prefs.filterHome) {
-      applyHomepageFilter(keywords, onHideCallback, onShowCallback, prefs);
+      applyHomepageFilter(keywords, topic, onHideCallback, onShowCallback, prefs);
     }
   } else if (pageType === 'search' || pageType === 'history' || pageType === 'library' || pageType === 'playlist' || pageType === 'explore') {
     if (prefs.filterSearch) {

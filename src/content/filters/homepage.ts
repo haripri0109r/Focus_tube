@@ -22,8 +22,114 @@ import {
   isShortsItem,
 } from './utils';
 
+export function removeLearningHeader(): void {
+  const el = document.getElementById('ft-learning-header');
+  if (el) el.remove();
+  
+  const existingFallback = document.getElementById('ft-homepage-fallback');
+  if (existingFallback) existingFallback.remove();
+}
+
+function renderLearningHeader(root: Element, topic: string): void {
+  let header = document.getElementById('ft-learning-header');
+  
+  if (!header) {
+    header = document.createElement('div');
+    header.id = 'ft-learning-header';
+    header.style.cssText = `
+      grid-column: 1 / -1;
+      width: 100%;
+      margin: 16px 0 24px 0;
+      padding: 24px;
+      background: linear-gradient(135deg, #1b1b1b 0%, #111 100%);
+      border: 1px solid #2d2d2d;
+      border-radius: 12px;
+      color: white;
+      font-family: Roboto, Arial, sans-serif;
+      box-sizing: border-box;
+    `;
+    
+    // Insert at the very top of contents container or root
+    const contents = root.querySelector('#contents') || root;
+    if (contents.firstChild) {
+      contents.insertBefore(header, contents.firstChild);
+    } else {
+      contents.appendChild(header);
+    }
+  }
+
+  // Check if innerHTML is already set to prevent resetting user focus
+  if (!header.querySelector('#ft-header-search-input')) {
+    header.innerHTML = `
+      <style>
+        #ft-header-search-input:focus {
+          border-color: #3ea6ff !important;
+          box-shadow: 0 0 8px rgba(62, 166, 255, 0.3);
+        }
+        .ft-header-btn {
+          padding: 8px 16px;
+          border-radius: 18px;
+          font-weight: bold;
+          cursor: pointer;
+          font-size: 13px;
+          transition: all 0.2s ease;
+          border: none;
+        }
+        .ft-header-btn-secondary {
+          background: #272727;
+          color: #fff;
+          border: 1px solid #3f3f3f;
+        }
+        .ft-header-btn-secondary:hover {
+          background: #3f3f3f;
+        }
+        .ft-header-btn-danger {
+          background: #cc0000;
+          color: white;
+        }
+        .ft-header-btn-danger:hover {
+          background: #ff0000;
+        }
+      </style>
+      <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; flex-wrap: wrap; gap: 12px;">
+        <div>
+          <div style="font-size: 11px; font-weight: bold; text-transform: uppercase; color: #3ea6ff; letter-spacing: 1.5px;">Focus Session</div>
+          <h2 style="margin: 4px 0 0 0; font-size: 24px; font-weight: bold; color: #fff;">🎓 ${topic}</h2>
+        </div>
+        <div style="display: flex; gap: 8px;">
+          <button id="ft-header-pause" class="ft-header-btn ft-header-btn-secondary">Pause Session</button>
+          <button id="ft-header-end" class="ft-header-btn ft-header-btn-danger">End Session</button>
+        </div>
+      </div>
+      <div style="position: relative; width: 100%; max-width: 600px;">
+        <span style="position: absolute; left: 16px; top: 50%; transform: translateY(-50%); font-size: 16px; color: #888; pointer-events: none;">🔍</span>
+        <input type="text" id="ft-header-search-input" placeholder="Search YouTube for &quot;${topic}&quot; content..." 
+          style="width: 100%; box-sizing: border-box; padding: 12px 16px 12px 44px; border-radius: 22px; border: 1px solid #3a3a3a; background: #121212; color: white; font-size: 15px; outline: none; transition: all 0.2s;" 
+          autocomplete="off" />
+      </div>
+    `;
+
+    // Add event listeners
+    const searchInput = header.querySelector('#ft-header-search-input') as HTMLInputElement | null;
+    searchInput?.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter' && searchInput.value.trim()) {
+        window.location.href = `/results?search_query=${encodeURIComponent(searchInput.value.trim())}`;
+      }
+    });
+
+    header.querySelector('#ft-header-pause')?.addEventListener('click', () => {
+      chrome.runtime.sendMessage({ type: 'SESSION_PAUSE' });
+    });
+
+    header.querySelector('#ft-header-end')?.addEventListener('click', () => {
+      chrome.runtime.sendMessage({ type: 'SESSION_END' });
+    });
+  }
+}
+
 export function applyHomepageFilter(
   keywords: string[],
+  topic: string,
   onHide: () => void,
   onShow: () => void,
   prefs?: UserPrefs,
@@ -54,9 +160,17 @@ export function applyHomepageFilter(
   let foundAny = false;
 
   for (const root of roots) {
+    // 1. Render the Learning Header at the top of the homepage grid
+    if (root.tagName.toLowerCase() === 'ytd-rich-grid-renderer' && topic) {
+      renderLearningHeader(root, topic);
+    }
+
     const elements = root.querySelectorAll(selectors);
 
     elements.forEach((el) => {
+      // Exclude learning header or fallback cards
+      if (el.id === 'ft-learning-header' || el.id === 'ft-homepage-fallback') return;
+
       // Skip if already processed (WeakSet check)
       if (processedElements.has(el)) return;
 
@@ -115,16 +229,21 @@ export function applyHomepageFilter(
 
   // Only check fallback if we actually found video elements to process
   if (foundAny) {
-    checkHomepageFallback(roots[0]);
+    checkHomepageFallback(roots[0], topic);
   }
 }
 
 
-function checkHomepageFallback(root: Element): void {
-  const visibleItems = root.querySelectorAll('[data-focustube-hidden="false"]');
+function checkHomepageFallback(root: Element, topic: string): void {
+  // Exclude the learning header and the fallback itself from the queries
+  const visibleItems = Array.from(root.querySelectorAll('[data-focustube-hidden="false"]'))
+    .filter(el => el.id !== 'ft-learning-header' && el.id !== 'ft-homepage-fallback');
   const existingFallback = document.getElementById('ft-homepage-fallback');
 
-  if (visibleItems.length === 0 && root.querySelectorAll('[data-focustube-hidden]').length > 0) {
+  const processedCount = Array.from(root.querySelectorAll('[data-focustube-hidden]'))
+    .filter(el => el.id !== 'ft-learning-header' && el.id !== 'ft-homepage-fallback').length;
+
+  if (visibleItems.length === 0 && processedCount > 0) {
     if (!existingFallback) {
       window.scrollTo(0, 0);
       setTimeout(() => window.scrollTo(0, 0), 100);
@@ -136,33 +255,31 @@ function checkHomepageFallback(root: Element): void {
         flex-direction: column;
         align-items: center;
         justify-content: center;
-        padding: 60px 20px;
+        padding: 40px 20px;
         color: #aaa;
         text-align: center;
         border-radius: 12px;
-        margin: 20px;
+        margin: 20px 0;
         border: 1px dashed #333;
+        background: #0f0f0f;
+        font-family: Roboto, Arial, sans-serif;
       `;
       fallback.innerHTML = `
-        <div style="font-size: 48px; margin-bottom: 16px;">🎓</div>
-        <h2 style="color: #fff; margin-bottom: 8px; font-family: Roboto, Arial, sans-serif;">All distractions filtered!</h2>
-        <p style="margin-bottom: 24px; max-width: 400px; font-family: Roboto, Arial, sans-serif; color: #aaa;">
-          Your homepage is now distraction-free. Search for your learning topic below.
+        <div style="font-size: 36px; margin-bottom: 12px;">🎯</div>
+        <h3 style="color: #fff; margin-bottom: 8px;">All recommendations filtered</h3>
+        <p style="margin: 0; color: #888; font-size: 14px;">
+          Use the search bar in the Focus header above to search for "${topic}" videos.
         </p>
-        <button id="ft-fallback-search" style="background: #3ea6ff; color: #0f0f0f; border: none; padding: 10px 20px; border-radius: 18px; font-weight: bold; cursor: pointer; font-size: 14px;">
-          Search Your Topic
-        </button>
       `;
-      root.appendChild(fallback);
-
-      fallback.querySelector('#ft-fallback-search')?.addEventListener('click', () => {
-        const searchInput = document.querySelector('input[name="search_query"]') as HTMLInputElement | null;
-        if (searchInput) {
-          searchInput.focus();
-         } else {
-          window.scrollTo({ top: 0, behavior: 'smooth' });
-        }
-      });
+      
+      const contentsContainer = root.querySelector('#contents') || root;
+      // Append right after the learning header if it exists
+      const header = document.getElementById('ft-learning-header');
+      if (header && header.nextSibling) {
+        contentsContainer.insertBefore(fallback, header.nextSibling);
+      } else {
+        contentsContainer.appendChild(fallback);
+      }
     }
   } else if (existingFallback) {
     existingFallback.remove();
