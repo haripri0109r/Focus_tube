@@ -6,17 +6,10 @@
  *   chrome.storage.local.set({ focustube_debug: true })
  */
 
-let debugEnabled: boolean | null = null; // null = not yet loaded
+let debugEnabled: boolean | null = true; // null = not yet loaded
 
 async function isDebugEnabled(): Promise<boolean> {
-  if (debugEnabled !== null) return debugEnabled;
-  try {
-    const data = await chrome.storage.local.get('focustube_debug');
-    debugEnabled = !!data.focustube_debug;
-  } catch {
-    debugEnabled = false;
-  }
-  return debugEnabled;
+  return true; // Always return true for debugging phase
 }
 
 // Listen for runtime changes to debug flag

@@ -150,6 +150,7 @@ export function setupObserver(
 // ---------------------------------------------------------------------------
 
 function processFilters(pageType: PageType, keywords: string[], prefs: UserPrefs): void {
+  console.log('[FT:OBSERVER]', { pageType, keywordsCount: keywords.length, keywords, filterHome: prefs.filterHome });
   if (pageType === 'home' || pageType === 'subscriptions') {
     if (prefs.filterHome) {
       applyHomepageFilter(keywords, onHideCallback, onShowCallback, prefs);
