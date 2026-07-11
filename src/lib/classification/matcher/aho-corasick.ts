@@ -104,13 +104,30 @@ export class AhoCorasick {
 
       // Collect all outputs at this node
       for (const entry of node.outputs) {
+        const start = i - entry.keyword.length + 1;
+        const end = i + 1;
+        
+        // Word boundary validation on the left (only if first char is alphanumeric)
+        if (entry.keyword.length > 0 && /\w/.test(entry.keyword[0])) {
+          if (start > 0 && /\w/.test(text[start - 1])) {
+            continue; // Skip: not a word boundary on the left
+          }
+        }
+        
+        // Word boundary validation on the right (only if last char is alphanumeric)
+        if (entry.keyword.length > 0 && /\w/.test(entry.keyword[entry.keyword.length - 1])) {
+          if (end < text.length && /\w/.test(text[end])) {
+            continue; // Skip: not a word boundary on the right
+          }
+        }
+
         hits.push({
           keyword: entry.keyword,
           type: entry.type,
           category: entry.category,
           subtopic: entry.subtopic,
           weight: entry.weight,
-          position: i - entry.keyword.length + 1,
+          position: start,
         });
       }
     }

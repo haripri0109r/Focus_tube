@@ -102,6 +102,20 @@ export class EntScorerModule implements ClassificationModule {
   }
 }
 
+function escapeRegExp(str: string): string {
+  return str.replace(/[-\/\\^$*+?.()|[\]{}]/g, '\\$&');
+}
+
+function containsWord(text: string, word: string): boolean {
+  const escaped = escapeRegExp(word);
+  return new RegExp(`\\b${escaped}\\b`, 'i').test(text);
+}
+
+function containsPrefixWord(text: string, prefix: string): boolean {
+  const escaped = escapeRegExp(prefix);
+  return new RegExp(`\\b${escaped}`, 'i').test(text);
+}
+
 // ============================================================================
 // 3. Topic Matcher
 // ============================================================================
@@ -119,21 +133,28 @@ export class TopicMatcherModule implements ClassificationModule {
 
     // Direct keyword matches (from user's session keyword list)
     for (const kw of keywords) {
-      const lk = kw.toLowerCase();
-      if (text.includes(lk)) {
+      const lk = kw.toLowerCase().trim();
+      if (!lk) continue;
+
+      if (containsWord(text, lk)) {
         rawScore += 50;
         matched.push(lk);
-      } else if (text.includes(lk.slice(0, -1))) {
-        // partial suffix match
-        rawScore += 25;
-        matched.push(`~${lk}`);
+      } else if (lk.length >= 4) {
+        const slice = lk.slice(0, -1);
+        if (containsPrefixWord(text, slice)) {
+          rawScore += 25;
+          matched.push(`~${lk}`);
+        }
       }
     }
 
     // Also try direct topic string match
-    if (topic && text.includes(topic.toLowerCase())) {
-      rawScore += 40;
-      matched.push(topic);
+    if (topic) {
+      const lTopic = topic.toLowerCase().trim();
+      if (lTopic && containsWord(text, lTopic)) {
+        rawScore += 40;
+        matched.push(lTopic);
+      }
     }
 
     const score = normalize(rawScore, TOPIC_SATURATION);
