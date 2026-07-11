@@ -195,6 +195,19 @@ function injectGlobalBlockerCss(): void {
     /* Hide the miniplayer if it tries to pop up */
     ytd-miniplayer { display: none !important; }
     
+    /* Hide category chips bar during active session to prevent distraction and layout overlap */
+    ytd-feed-filter-chip-bar-renderer,
+    yt-related-chip-cloud-renderer,
+    #chips,
+    #chips-wrapper {
+      display: none !important;
+    }
+
+    /* Fix ytd-browse overflow: hidden breaking sticky positioning */
+    ytd-browse {
+      overflow: visible !important;
+    }
+
     /* Global Anti-Flicker: Hide any video/short that hasn't been processed by FocusTube yet */
     ytd-video-renderer:not([data-focustube-hidden]),
     ytd-grid-video-renderer:not([data-focustube-hidden]),

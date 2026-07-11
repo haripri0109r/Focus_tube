@@ -30,101 +30,90 @@ export function removeLearningHeader(): void {
   if (existingFallback) existingFallback.remove();
 }
 
-function renderLearningHeader(root: Element, topic: string): void {
-  let header = document.getElementById('ft-learning-header');
-  
-  if (!header) {
-    header = document.createElement('div');
-    header.id = 'ft-learning-header';
-    header.style.cssText = `
-      grid-column: 1 / -1;
-      width: 100%;
-      margin: 16px 0 24px 0;
-      padding: 24px;
-      background: linear-gradient(135deg, #1b1b1b 0%, #111 100%);
-      border: 1px solid #2d2d2d;
-      border-radius: 12px;
-      color: white;
-      font-family: Roboto, Arial, sans-serif;
-      box-sizing: border-box;
-    `;
-    
-    // Insert at the very top of contents container or root
-    const contents = root.querySelector('#contents') || root;
-    if (contents.firstChild) {
-      contents.insertBefore(header, contents.firstChild);
+function renderLearningHeader(_root: Element, topic: string): void {
+  // Already mounted — don't remount if the search input is there (prevents focus disruption)
+  if (document.getElementById('ft-learning-header')) {
+    return;
+  }
+
+  const header = document.createElement('div');
+  header.id = 'ft-learning-header';
+  // Use position:sticky so it stays at the very top of the scrollable content area
+  // YouTube's own header is ~56px tall. We sit just below it.
+  header.style.cssText = `
+    position: sticky;
+    top: 56px;
+    z-index: 1000;
+    width: 100%;
+    padding: 16px 24px;
+    background: #0f0f0f;
+    border-bottom: 1px solid #2d2d2d;
+    box-sizing: border-box;
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    font-family: Roboto, Arial, sans-serif;
+  `;
+
+  header.innerHTML = `
+    <div style="display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:10px;">
+      <div style="display:flex; align-items:center; gap:12px;">
+        <span style="font-size:20px;">🎓</span>
+        <div>
+          <div style="font-size:10px; font-weight:700; text-transform:uppercase; color:#3ea6ff; letter-spacing:1.5px; line-height:1;">Focus Session</div>
+          <div style="font-size:16px; font-weight:700; color:#fff; margin-top:2px;">${topic}</div>
+        </div>
+      </div>
+      <div style="display:flex; gap:8px; flex-shrink:0;">
+        <button id="ft-header-pause" style="padding:7px 14px; border-radius:16px; font-size:12px; font-weight:700; cursor:pointer; border:1px solid #444; background:#272727; color:#fff; transition:background 0.2s;">⏸ Pause</button>
+        <button id="ft-header-end" style="padding:7px 14px; border-radius:16px; font-size:12px; font-weight:700; cursor:pointer; border:none; background:#cc0000; color:#fff; transition:background 0.2s;">✕ End Session</button>
+      </div>
+    </div>
+    <div style="position:relative; max-width:700px; width:100%;">
+      <span style="position:absolute; left:14px; top:50%; transform:translateY(-50%); font-size:15px; color:#888; pointer-events:none; z-index:1;">🔍</span>
+      <input type="text" id="ft-header-search-input"
+        placeholder='Search for "${topic}" tutorials, courses...'
+        style="width:100%; box-sizing:border-box; padding:11px 16px 11px 42px; border-radius:22px; border:1.5px solid #3a3a3a; background:#1a1a1a; color:#fff; font-size:14px; outline:none; font-family:Roboto,Arial,sans-serif; transition:border-color 0.2s;"
+        autocomplete="off"
+        onfocus="this.style.borderColor='#3ea6ff'"
+        onblur="this.style.borderColor='#3a3a3a'"
+      />
+    </div>
+  `;
+
+  // Insert BEFORE the primary grid or list renderer so it sits cleanly at the top of the feed
+  const targetFeed = document.querySelector('ytd-rich-grid-renderer') || document.querySelector('ytd-section-list-renderer');
+  if (targetFeed && targetFeed.parentElement) {
+    targetFeed.parentElement.insertBefore(header, targetFeed);
+  } else {
+    // Fallback: insert before the page manager content
+    const pageManager = document.querySelector('ytd-page-manager') || document.body;
+    if (pageManager.firstChild) {
+      pageManager.insertBefore(header, pageManager.firstChild);
     } else {
-      contents.appendChild(header);
+      pageManager.appendChild(header);
     }
   }
 
-  // Check if innerHTML is already set to prevent resetting user focus
-  if (!header.querySelector('#ft-header-search-input')) {
-    header.innerHTML = `
-      <style>
-        #ft-header-search-input:focus {
-          border-color: #3ea6ff !important;
-          box-shadow: 0 0 8px rgba(62, 166, 255, 0.3);
-        }
-        .ft-header-btn {
-          padding: 8px 16px;
-          border-radius: 18px;
-          font-weight: bold;
-          cursor: pointer;
-          font-size: 13px;
-          transition: all 0.2s ease;
-          border: none;
-        }
-        .ft-header-btn-secondary {
-          background: #272727;
-          color: #fff;
-          border: 1px solid #3f3f3f;
-        }
-        .ft-header-btn-secondary:hover {
-          background: #3f3f3f;
-        }
-        .ft-header-btn-danger {
-          background: #cc0000;
-          color: white;
-        }
-        .ft-header-btn-danger:hover {
-          background: #ff0000;
-        }
-      </style>
-      <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; flex-wrap: wrap; gap: 12px;">
-        <div>
-          <div style="font-size: 11px; font-weight: bold; text-transform: uppercase; color: #3ea6ff; letter-spacing: 1.5px;">Focus Session</div>
-          <h2 style="margin: 4px 0 0 0; font-size: 24px; font-weight: bold; color: #fff;">🎓 ${topic}</h2>
-        </div>
-        <div style="display: flex; gap: 8px;">
-          <button id="ft-header-pause" class="ft-header-btn ft-header-btn-secondary">Pause Session</button>
-          <button id="ft-header-end" class="ft-header-btn ft-header-btn-danger">End Session</button>
-        </div>
-      </div>
-      <div style="position: relative; width: 100%; max-width: 600px;">
-        <span style="position: absolute; left: 16px; top: 50%; transform: translateY(-50%); font-size: 16px; color: #888; pointer-events: none;">🔍</span>
-        <input type="text" id="ft-header-search-input" placeholder="Search YouTube for &quot;${topic}&quot; content..." 
-          style="width: 100%; box-sizing: border-box; padding: 12px 16px 12px 44px; border-radius: 22px; border: 1px solid #3a3a3a; background: #121212; color: white; font-size: 15px; outline: none; transition: all 0.2s;" 
-          autocomplete="off" />
-      </div>
-    `;
-
-    // Add event listeners
-    const searchInput = header.querySelector('#ft-header-search-input') as HTMLInputElement | null;
-    searchInput?.addEventListener('keydown', (e) => {
+  // Wire up events
+  const searchInput = header.querySelector('#ft-header-search-input') as HTMLInputElement;
+  if (searchInput) {
+    searchInput.addEventListener('keydown', (e) => {
       if (e.key === 'Enter' && searchInput.value.trim()) {
         window.location.href = `/results?search_query=${encodeURIComponent(searchInput.value.trim())}`;
       }
     });
-
-    header.querySelector('#ft-header-pause')?.addEventListener('click', () => {
-      chrome.runtime.sendMessage({ type: 'SESSION_PAUSE' });
-    });
-
-    header.querySelector('#ft-header-end')?.addEventListener('click', () => {
-      chrome.runtime.sendMessage({ type: 'SESSION_END' });
-    });
+    // Auto-focus the search box so user can immediately type
+    setTimeout(() => searchInput.focus(), 200);
   }
+
+  header.querySelector('#ft-header-pause')?.addEventListener('click', () => {
+    chrome.runtime.sendMessage({ type: 'SESSION_PAUSE' });
+  });
+
+  header.querySelector('#ft-header-end')?.addEventListener('click', () => {
+    chrome.runtime.sendMessage({ type: 'SESSION_END' });
+  });
 }
 
 export function applyHomepageFilter(
